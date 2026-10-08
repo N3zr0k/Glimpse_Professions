@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Professions.lua legt das Modul an, die anderen Dateien erweitern es nur. -->
+    <Script file="Professions.lua"/>
+    <Script file="Skills.lua"/>
+    <Script file="Blizzard.lua"/>
+    <Script file="Tooltip.lua"/>
+    <Script file="Probe.lua"/>
+    <Script file="Events.lua"/>
+    <Script file="Options.lua"/>
+</Ui>

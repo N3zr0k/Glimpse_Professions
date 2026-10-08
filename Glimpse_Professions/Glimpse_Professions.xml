@@ -1,0 +1,14 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+
+    <!-- 1. Texte -->
+    <Include file="Locales\Locales.xml"/>
+
+    <!-- 2. Modul, Berufe-Liste, Fertigkeit, Tooltip, Optionen -->
+    <Include file="Core\Core.xml"/>
+
+    <!-- 3. Die Berufe (je Beruf ein Ordner) -->
+    <Include file="Modules\Modules.xml"/>
+
+    <!-- 4. Slash-Befehl -->
+    <Include file="Commands\Commands.xml"/>
+</Ui>

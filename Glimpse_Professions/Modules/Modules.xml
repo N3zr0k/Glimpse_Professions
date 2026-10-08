@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Ein Beruf = ein Ordner mit Haupt-Lua und Helfern; die Haupt-Lua meldet sich mit RegisterProfession an. -->
+    <Include file="Fishing\Fishing.xml"/>
+</Ui>
