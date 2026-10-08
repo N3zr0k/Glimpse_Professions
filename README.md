@@ -2,6 +2,13 @@
 
 <p align="center"><img src="docs/icon.png" alt="Professions icon" width="160"></p>
 
+<p align="center">
+  <a href="https://github.com/N3zr0k/Glimpse_Professions/releases"><img src="https://img.shields.io/github/v/release/N3zr0k/Glimpse_Professions?include_prereleases&sort=date&label=latest" alt="latest"></a>
+  <a href="https://github.com/N3zr0k/Glimpse_Professions/releases"><img src="https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fgithub.com%2FN3zr0k%2FGlimpse_Professions%2Freleases.atom&search=%2F%28release%29s%2Ftag%2Fv%5B0-9.%5D%2B%22%7C%2Freleases%2Ftag%2Fv%5B0-9.%5D%2B-%28alpha%7Cbeta%29&replace=%241%242&label=status&color=blue" alt="status"></a>
+  <a href="https://github.com/N3zr0k/Glimpse_Professions/commits/main"><img src="https://img.shields.io/github/last-commit/N3zr0k/Glimpse_Professions/main?label=last%20push" alt="last push"></a>
+  <a href="https://github.com/N3zr0k/Glimpse_Professions/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/N3zr0k/Glimpse_Professions/ci.yml?branch=main&label=CI" alt="CI"></a>
+</p>
+
 Extends the tooltips of profession spells with what you want to know about the profession: your skill with bonus, the
 profession tier and the statistics of the game. Every profession has its own tab in the options; fishing comes first.
 
