@@ -3,7 +3,7 @@
 ## Notes: Extends the tooltips of professions.
 ## Notes-deDE: Erweitert die Tooltips der Berufe.
 
-## Version: 0.1.77-alpha.1
+## Version: 0.1.78-alpha.1
 ## Author: N3zr0k
 ## X-License: MIT
 ## X-Website: https://github.com/N3zr0k/Glimpse_Professions

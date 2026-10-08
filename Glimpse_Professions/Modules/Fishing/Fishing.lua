@@ -89,14 +89,13 @@ local function Lines(self, def, compact)
     end
     local text = format("%s: %s%d|r", L["Fishing skill"], COLOR.value, skill.rank)
     local showBonus = self:Opt(key, "bonus") ~= false
-    if not showBonus then
-    elseif self:Opt(key, "split") and not combined then
+    if showBonus and self:Opt(key, "split") and not combined then
         local first = true
         local function Part(color, value) text = text .. format("%s%s(+%d)|r", first and " " or "", color, value) first = false end
         if lure > 0 then Part(COLOR.lure, lure) end
         if buffTotal > 0 then Part(COLOR.buff, buffTotal) end
         if gear > 0 then Part(COLOR.gear, gear) end
-    elseif lure + gear + buffTotal > 0 then
+    elseif showBonus and lure + gear + buffTotal > 0 then
         text = text .. format(" %s(+%d)|r", COLOR.total, lure + gear + buffTotal)
     end
     text = text .. format("%s/%d|r", COLOR.value, skill.max)

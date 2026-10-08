@@ -515,7 +515,7 @@ test("Angel auswerfen: mit Fishing Buddy nur der Tooltip, keine Anzeige und kein
     eq(args.castBlocked.name():find("|cffffd100Fishing Buddy|r |cff33ff33(v1.9.3) |r|cffffffffinstalled|r\n|cff999999", 1, true) ~= nil, true, "Name gelb, Version grün, installiert weiß, Text grau")
     eq(args.castHeader.hidden, nil, "die Überschrift bleibt sichtbar")
     eq(args.castBlocked.image(), nil, "kein Symbol, wenn das Addon keins angibt")
-    P.castApi.GetAddOnMetadata = function(name, field)
+    P.castApi.GetAddOnMetadata = function(_name, field)
         if field == "IconTexture" then return "Interface\\Icons\\Trade_Fishing" end
         if field == "Version" then return "1.9.3" end
     end
@@ -569,7 +569,7 @@ test("Köder: bester Köder aus dem Rucksack wird auf die Angel ohne Köder ange
     e.used, e.picked, e.good = {}, 0, {}
     la.GetContainerItemLink = function(bag, slot) return "[Item" .. e.bags[bag][slot] .. "]" end
     la.TooltipLines = function(bag, slot) return e.bags[bag][slot] == 9999 and { "Name", "Equip: Fishing +40" } or {} end
-    la.Good = function(text) e.good[#e.good + 1] = text end
+    la.Good = function(msg) e.good[#e.good + 1] = msg end
         P.api.GetInventoryItemID = function() return 6256 end
     P.api.GetItemInfoInstant = function(id) return id, "", "", "", "", id == 6256 and 2 or 0, id == 6256 and 20 or 0 end
     P.api.GetWeaponEnchantInfo = function() return false end

@@ -37,7 +37,7 @@ read_globals = {
     "SlashCmdList", "NUM_ACTIONBAR_BUTTONS", "bit", "geterrorhandler", "issecrettable", "TooltipUtil",
     "GetBuildInfo", "GetNumAddOns", "GetAddOnInfo", "GetAddOnDependencies", "MAX_ACCOUNT_MACROS",
     "GetNumBindings", "GetBinding", "GetShapeshiftFormInfo", "GetNumMacros", "GetMacroItem",
-    "GetMacroSpell", "ITEM_QUALITY_COLORS",
+    "GetMacroSpell", "ITEM_QUALITY_COLORS", "GetItemInfo", "GetContainerItemLink",
     -- Orte, Wegpunkte und Fehlerfenster (Modul Locations, GatheringTooltip); TomTom ist optional
     "C_Map", "C_SuperTrack", "UiMapPoint", "CreateVector2D", "IsInInstance", "GetInstanceInfo", "TomTom",
     "StaticPopup_Show", "OKAY", "UISpecialFrames", "YES", "NO",

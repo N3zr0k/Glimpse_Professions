@@ -22,7 +22,7 @@ P.buffApi = {
     Buffs = function()
         local list = {}
         for index = 1, MAX_BUFFS do
-            local name, spellID, lines
+            local name, spellID, lines, _
             local get = C_UnitAuras and (C_UnitAuras.GetBuffDataAtIndex or C_UnitAuras.GetAuraDataByIndex)
             if get then
                 local data = get("player", index, "HELPFUL")

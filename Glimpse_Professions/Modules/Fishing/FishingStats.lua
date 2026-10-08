@@ -1,6 +1,5 @@
 local Glimpse = LibStub("AceAddon-3.0"):GetAddon("Glimpse")
 local P = Glimpse:GetModule("Professions")
-local L = P.L
 
 -- Angelzähler aus Glimpse: Statistics (nur dieser Charakter), ausschließlich über dessen API (:GetInfo, :Query).
 -- Ohne das Addon fehlen Zeilen und Optionen.
