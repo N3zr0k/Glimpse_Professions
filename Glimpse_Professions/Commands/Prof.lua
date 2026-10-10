@@ -4,7 +4,7 @@ local L = P.L
 
 -- /gli prof                         Berufe, Fertigkeit, Tooltip an/aus
 -- /gli prof probe [key]             Client-Rohdaten zu einem Beruf, z. B. fishing
--- /gli prof cast | lure | buffs     Angel-Details
+-- /gli prof cast | lure | buffs | record     Angel-Details
 local function PrintLines(lines)
     for _, line in ipairs(lines) do Glimpse:Print(line) end
 end
@@ -15,6 +15,10 @@ local function OnCommand(_, args)
 
     if word == "cast" then
         PrintLines(P:CastLines())
+        return
+    end
+    if word == "record" then
+        PrintLines(P:FishingRecordLines())
         return
     end
     if word == "lure" then
@@ -32,4 +36,4 @@ local function OnCommand(_, args)
     PrintLines(P:OverviewLines())
 end
 
-Glimpse:RegisterCommand("prof", L["Shows your professions and whether their tooltips are extended: /gli prof, what the client reports about a profession: /gli prof probe [profession], the steps of the fishing shortcut: /gli prof cast, the buffs with a fishing bonus: /gli prof buffs, the lure: /gli prof lure"], OnCommand)
+Glimpse:RegisterCommand("prof", L["Shows your professions and whether their tooltips are extended: /gli prof, what the client reports about a profession: /gli prof probe [profession], the steps of the fishing shortcut: /gli prof cast, the buffs with a fishing bonus: /gli prof buffs, the lure: /gli prof lure, the steps of the cast counting: /gli prof record"], OnCommand)

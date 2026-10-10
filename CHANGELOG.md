@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.16] - 2026-10-10
+
+### Added
+- `/gli prof record` shows the steps of the fishing cast counting
+
+## [0.3.15] - 2026-10-10
+
+### Fixed
+- Fishing: a cast is counted when it ends; moving, falling or being attacked cancels the attempt (stored as abort, not used in the numbers)
+
 ## [0.3.14] - 2026-10-10
 
 ### Fixed

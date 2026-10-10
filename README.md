@@ -91,8 +91,9 @@ Settings are stored in `GlimpseProfessionsDB`.
 | `/gli prof cast` | State of the fishing shortcut and a log of the last steps |
 | `/gli prof buffs` | Your buffs with tooltip lines and which count as a fishing bonus |
 | `/gli prof lure` | The rod, the lure on it and the lures found in your bags |
+| `/gli prof record` | The steps of the cast counting: casts, stops, loot windows and why a cast was counted or cancelled |
 
-The last four are for troubleshooting.
+The last five are for troubleshooting.
 
 ## Installation
 

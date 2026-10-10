@@ -25,7 +25,7 @@ noch in der eigenen SavedVariable `GlimpseProfessionsDB` (AceDB: `global` = Eins
 | `Modules/Modules.xml` | Lädt die Berufe, je Beruf ein Ordner | – | – |
 | `Modules/Fishing/Fishing.xml` | Lädt die Angeln-Dateien, `Fishing.lua` zuerst | – | – |
 | `Modules/Fishing/Fishing.lua` | Beruf Angeln: Tooltip am Zauber „Fischen“ (Stufe, Fertigkeit mit Boni, Statistik), Options-Tab mit Tastenauswahl des Cores, Probe | liest über `FishingStats.lua`; merkt `fishingGear` in `GlimpseProfessionsDB.char`; Einstellungen `castKey`, `castButton` in `GlimpseProfessionsDB.global.fishing` | `RegisterProfession`, `Glimpse:AddDoubleClickKeyOptions` (Core 0.3.7) |
-| `Modules/Fishing/FishingRecord.lua` | Zählt Würfe, Fänge, Beute je Zone und Berufsstufe | schreibt: `fishing` (einziger Schreiber, auch `castabort`, `aborttier`; Weltwissen `looted`, `loot`, `drop`) | `GlimpseDB:Register`, `Glimpse.IDs:ZoneKey`, `C_Loot`, `IsFishingLoot`, `GetUnitSpeed`, `IsFalling`, `C_Timer` |
+| `Modules/Fishing/FishingRecord.lua` | Zählt Würfe, Fänge, Beute je Zone und Berufsstufe | schreibt: `fishing` (einziger Schreiber, auch `castabort`, `aborttier`; Weltwissen `looted`, `loot`, `drop`) | `GlimpseDB:Register`, `Glimpse.IDs:ZoneKey`, `C_Loot`, `IsFishingLoot`, `GetUnitSpeed`, `IsFalling`, `UnitAffectingCombat`, `C_Timer` |
 | `Modules/Fishing/FishingStats.lua` | Eigene Angelzähler dieses Charakters für den Tooltip (gesamt, heute, 7 Tage, je Stufe) | liest: `fishing` | `GlimpseDB:Get` |
 | `Modules/Fishing/FishingBuffs.lua` | Angelboni aus Buffs und Köder an der Angel | – | `C_UnitAuras`, `C_TooltipInfo` |
 | `Modules/Fishing/FishingLure.lua` | Auto-Köder: bester Köder aus den Taschen beim Auswerfen | – | `C_Container`, `C_TooltipInfo.GetBagItem` |
@@ -33,6 +33,6 @@ noch in der eigenen SavedVariable `GlimpseProfessionsDB` (AceDB: `global` = Eins
 | `Modules/Fishing/FishingJournal.lua` | Verwittertes Tagebuch (Item 34109, Zauber Fischsuche 43308): Tooltip-Zeile gelernt/nicht gelernt, schaltet die Fischsuche bei Login/Reload und nach dem Lernen ein (Option `findFish`) | – | `IsPlayerSpell`, `C_Minimap` (`GetNumTrackingTypes`, `GetTrackingInfo`, `SetTracking`), `Glimpse.IDs:DescribeItem`, Ereignis `LEARNED_SPELL_IN_TAB` |
 | `Modules/Fishing/FishingSources.lua` | Zeilen für `/gli probe db sources` | liest: Stand der Anmeldung an `fishing` | `Glimpse:RegisterDataSource` |
 | `Commands/Commands.xml` | Lädt die Slash-Befehle | – | – |
-| `Commands/Prof.lua` | `/gli prof` mit `probe`, `cast`, `lure`, `buffs` | – | `Glimpse:RegisterCommand` |
+| `Commands/Prof.lua` | `/gli prof` mit `probe`, `cast`, `lure`, `buffs`, `record` | – | `Glimpse:RegisterCommand` |
 | `Media/Icon.tga` | Addon-Icon | – | – |
 | `LICENSE` | MIT-Lizenz, wird mit dem Addon ausgeliefert | – | – |
