@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.13] - 2026-10-10
+
 ### Added
 - Data sources shown in `/gli probe db sources`
 - First version: profession spell tooltips, one options tab per profession

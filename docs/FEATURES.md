@@ -1,6 +1,6 @@
 # Glimpse: Professions – Features
 
-Stand 0.3.12. Berufe: bisher nur Angeln.
+Stand 0.3.13. Berufe: bisher nur Angeln.
 
 ## Angeln
 
