@@ -12,12 +12,15 @@ function P:OnSkillEvent(event, unit)
     for _, key in ipairs(self.order) do
         local def = self.professions[key]
         if def.refresh then self.Protected(key .. " refresh", def.refresh, self, def) end
+        if event == "PLAYER_ENTERING_WORLD" and def.login then self.Protected(key .. " login", def.login, self, def) end
     end
 end
 
 function P:OnEnable()
     self:RegisterTooltips()
     if self.CastEnable then self:CastEnable() end
+    if self.FishingRecordEnable then self:FishingRecordEnable() end
+    if self.FishingJournalEnable then self:FishingJournalEnable() end
     for _, event in ipairs(EVENTS) do self:RegisterEvent(event, "OnSkillEvent") end
 end
 

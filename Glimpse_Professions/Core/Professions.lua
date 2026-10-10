@@ -14,6 +14,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
 --   options     function(P, def) -> AceConfig-Args des Tabs
 --   lines       function(P, def) -> Tooltip-Zeilen oder nil
 --   refresh     function(P, def), optional, bei Fertigkeits-/Ausrüstungsänderung
+--   login       function(P, def), optional, bei Login und Reload (PLAYER_ENTERING_WORLD)
 --   probe       function(P, def) -> Zeilen für /gli prof probe, optional
 local P = Glimpse:NewModule("Professions", nil, "AceEvent-3.0")
 

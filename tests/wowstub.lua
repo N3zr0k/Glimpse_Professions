@@ -22,7 +22,7 @@ end
 
 -- Das Addon-Objekt (Glimpse) mit Modulen, Befehlen und Optionen
 function stub.newGlimpse()
-    local Glimpse = { L = setmetatable({}, { __index = function(_, key) return key end }), modules = {}, commands = {}, printed = {} }
+    local Glimpse = { L = setmetatable({}, { __index = function(_, key) return key end }), modules = {}, commands = {}, printed = {}, dataSources = {} }
     function Glimpse:GetModule(name) return self.modules[name] end
     function Glimpse:IsSecret() return false end
     function Glimpse:NewModule(name)
@@ -34,8 +34,33 @@ function stub.newGlimpse()
         return module
     end
     function Glimpse:RegisterCommand(name, desc, func) self.commands[name] = { desc = desc, func = func } end
+    function Glimpse:RegisterDataSource(addon, func) self.dataSources[addon] = func end
     function Glimpse:Print(text) self.printed[#self.printed + 1] = text end
     function Glimpse:RegisterAddonOptions(_, options) self.options = options end
+    -- Doppelklick-Verteiler: nur Anmeldung festhalten
+    Glimpse.doubleClicks, Glimpse.doubleClickCentral = {}, false
+    function Glimpse:RegisterDoubleClick(name, handler) self.doubleClicks[name] = handler end
+    function Glimpse:UnregisterDoubleClick(name) self.doubleClicks[name] = nil end
+    function Glimpse:IsDoubleClickCentral() return self.doubleClickCentral end
+    function Glimpse:GetDoubleClickText(name)
+        if self.doubleClickCentral then return "ALT + Double right click" end
+        local handler = self.doubleClicks[name]
+        local modifier, button = handler.modifier(), handler.button()
+        local click = button == "RightButton" and "Double right click" or ("Double " .. button)
+        return modifier == "NONE" and click or (modifier .. " + " .. click)
+    end
+    -- wie im Core: zwei Auswahlfelder, die in settings schreiben, bei zentraler Taste gesperrt
+    function Glimpse:AddDoubleClickKeyOptions(args, settings, _, opts)
+        local function Option(field, default)
+            return {
+                get = function() return settings[field] or default end,
+                set = function(_, value) settings[field] = value end,
+                disabled = function() return self.doubleClickCentral or (opts.disabled and opts.disabled()) or false end,
+            }
+        end
+        args.doubleClickModifier = Option(opts.modifier, "SHIFT")
+        args.doubleClickButton = Option(opts.button, "RightButton")
+    end
 
     _G.LibStub = function(name, silent)
         if name == "LibDeflate" then if silent then return nil end error("LibDeflate fehlt") end

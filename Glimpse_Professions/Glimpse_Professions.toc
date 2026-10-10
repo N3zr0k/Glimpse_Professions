@@ -3,15 +3,16 @@
 ## Notes: Extends the tooltips of professions.
 ## Notes-deDE: Erweitert die Tooltips der Berufe.
 
-## Version: 0.1.78-alpha.2
+## Version: 0.3.12-alpha.1
 ## Author: N3zr0k
 ## X-License: MIT
 ## X-Website: https://github.com/N3zr0k/Glimpse_Professions
 ## X-Repo: https://github.com/N3zr0k/Glimpse_Professions
+## X-Curse-Project-ID: 1733313
 
-## X-Glimpse-MinVersion: 0.2.3
+## X-Glimpse-MinVersion: 0.3.7
 ## Dependencies: Glimpse
-## OptionalDeps: FishingBuddy, Glimpse_Statistics
+## OptionalDeps: FishingBuddy, BetterFishing, Glimpse_Database
 ## Category: Tooltip
 ## IconTexture: Interface\AddOns\Glimpse_Professions\Media\Icon
 ## SavedVariables: GlimpseProfessionsDB

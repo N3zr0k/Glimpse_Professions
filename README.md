@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/N3zr0k/Glimpse_Professions/releases"><img src="https://img.shields.io/github/v/release/N3zr0k/Glimpse_Professions?include_prereleases&sort=date&label=latest" alt="latest"></a>
-  <a href="https://github.com/N3zr0k/Glimpse_Professions/releases"><img src="https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fgithub.com%2FN3zr0k%2FGlimpse_Professions%2Freleases.atom&search=%2F%28release%29s%2Ftag%2Fv%5B0-9.%5D%2B%22%7C%2Freleases%2Ftag%2Fv%5B0-9.%5D%2B-%28alpha%7Cbeta%29&replace=%241%242&label=status&color=blue" alt="status"></a>
+  <a href="https://github.com/N3zr0k/Glimpse_Professions/releases"><img src="https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fgithub.com%2FN3zr0k%2FGlimpse_Professions%2Freleases.atom&search=%2F%28release%29s%2Ftag%2Fv%5B0-9.%5D%2B%22%7C%2Freleases%2Ftag%2Fv%5B0-9.%5D%2B-%28alpha%7Cbeta%7Clatest%29&replace=%241%242&label=status&color=blue" alt="status"></a>
   <a href="https://github.com/N3zr0k/Glimpse_Professions/commits/main"><img src="https://img.shields.io/github/last-commit/N3zr0k/Glimpse_Professions/main?label=last%20push" alt="last push"></a>
   <a href="https://github.com/N3zr0k/Glimpse_Professions/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/N3zr0k/Glimpse_Professions/ci.yml?branch=main&label=CI" alt="CI"></a>
 </p>
@@ -12,7 +12,7 @@
 Extends the tooltips of profession spells with what you want to know about the profession: your skill with bonus, the
 profession tier and the statistics of the game. Every profession has its own tab in the options; fishing comes first.
 
-Requires [Glimpse](https://github.com/N3zr0k/Glimpse) 0.2.3 or newer. For WoW Forever (interface 16001).
+Requires [Glimpse](https://github.com/N3zr0k/Glimpse) 0.3.7 or newer. For WoW Forever (interface 16001).
 
 ## Contents
 
@@ -37,7 +37,7 @@ Fishing skill: 20 (+25)(+10)(+5)/75 · Total: 60
 • Shiny Silver Coin +10
 Shift + Double right click to cast the fishing rod
 ----------------------------
-Glimpse: Statistics                             counters of this character, if Glimpse: Statistics is installed
+Glimpse counters                                counters of this character, recorded with Glimpse: Database
    Casts: 72  today 72 · 7 days 72
 ----------------------------
 Character statistics
@@ -55,26 +55,30 @@ While a line is cast, the tooltip of the fishing bobber shows the skill line and
   of the game; the addon's own translation is only the fallback.
 * **Statistics of the game:** the numbers Blizzard keeps (fish caught, fish and other things caught, daily fishing
   quests), names from the client; values that are still `--` are never shown. Each one can be switched on or off.
-* **Glimpse: Statistics:** if [Glimpse: Statistics](https://github.com/N3zr0k/Glimpse_Statistics) 0.1.51 or newer is
-  installed, its counters of this character (casts, catches, casts without catch, catch rate in total and per tier, fish
-  caught, since when it counts) are shown too. They are read through its data API, never from its database. The Fishing
-  tab shows a frame with the addon, its version and a switch.
-* **Cast with a shortcut:** hold the chosen key (Shift, Ctrl, Alt or none) and double right-click the game world to cast.
+* **Glimpse counters:** Professions records your fishing in Glimpse: Database (part of Glimpse): casts and catches per
+  zone and per tier, and the fish you caught. The tooltip shows casts, catches, casts without catch, catch rate in total
+  and per tier, fish caught and since when it counts. Counters from Glimpse: Statistics are taken over once.
+* **Cast with a shortcut:** hold the chosen key (Shift, Ctrl, Alt or none) and double-click the game world with the chosen
+  mouse button (right click by default) to cast.
   Without a rod in your hand your weapons (main hand and off hand) are put away and the rod is equipped; the next double
   click casts. After you moved more than 5 meters your weapons are equipped again (in combat: after the combat). Without
-  room in your bags for the weapons, or in combat, a message appears and nothing is changed.
+  room in your bags for the weapons, a message appears and nothing is changed. Works only while standing still and out of
+  combat. The key can also be set once for all Glimpse addons (Glimpse options, tab Double click).
 * **Apply the best lure automatically:** if the rod has no lure, the double click applies the best lure from your bags (a
   list of known lures, otherwise read from the item tooltip) and a green message names the lure, the rod and the bonus. The
   next double click casts.
-* **Fishing Buddy:** with [Fishing Buddy](https://www.curseforge.com/wow/addons/fishingbuddy) loaded only the tooltip is
-  extended. The weapon change, the cast shortcut, the lure and their options are switched off; the Fishing tab says so.
+* **Weather-Beaten Journal:** the tooltip shows whether you learned it (Find Fish). After login or reload, and right
+  after reading the journal, Find Fish is switched on in the minimap tracking if it is off (can be switched off).
+* **Fishing Buddy, Better Fishing:** with [Fishing Buddy](https://www.curseforge.com/wow/addons/fishingbuddy) or
+  [Better Fishing](https://www.curseforge.com/wow/addons/betterfishing) loaded only the tooltip is extended. The weapon
+  change, the cast shortcut, the lure and their options are switched off; the Fishing tab says so.
 
 ## Options
 
 Open them with `/gli config`, then Glimpse > Professions. A "General" tab and one tab per profession.
 
-* **Fishing:** show the bonuses, lure, buff and equipment bonus separately, game statistics (each on its own), counters of
-  Glimpse: Statistics, cast shortcut key, apply the best lure automatically.
+* **Fishing:** show the bonuses, lure, buff and equipment bonus separately, game statistics (each on its own), Glimpse
+  counters, cast shortcut key, apply the best lure automatically, switch on Find Fish automatically.
 
 Settings are stored in `GlimpseProfessionsDB`.
 
@@ -94,7 +98,7 @@ The last four are for troubleshooting.
 
 Install [Glimpse](https://github.com/N3zr0k/Glimpse/releases) first, then unpack this addon next to it into the AddOns
 folder of the Forever client, during the beta for example `D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns`.
-The folder must be called `Glimpse_Professions`. Optional: Glimpse: Statistics, Fishing Buddy.
+The folder must be called `Glimpse_Professions`. Optional: Fishing Buddy.
 
 ## For developers
 

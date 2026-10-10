@@ -2,25 +2,24 @@ local Glimpse = LibStub("AceAddon-3.0"):GetAddon("Glimpse")
 local P = Glimpse:GetModule("Professions")
 local L = P.L
 
--- Auswerfen per Modifier + doppeltem Rechtsklick.
---
--- GLOBAL_MOUSE_DOWN: Zweiter Rechtsklick innerhalb WINDOW bindet Rechtsklick für diesen Klick an einen Secure-Button
--- (nur so darf ein Addon zaubern) und beendet Mouselook. Der Button:
+-- Auswerfen per Modifier + doppeltem Rechtsklick über den Doppelklick-Verteiler des Cores (Glimpse:RegisterDoubleClick).
+-- Erkennung, Secure-Button und Kampfsperre liegen im Core; hier nur, was der Klick tut:
 --   * ohne Angel: Waffen merken und ablegen, Angel anlegen. Geworfen wird erst beim nächsten Doppelklick.
+--   * Angel ohne Köder (Option): bester Köder aus dem Rucksack, der nächste Doppelklick wirft.
 --   * mit Angel: "Fischen" wirken.
--- Nach mehr als RADIUS Metern Bewegung kommen die Waffen zurück (im Kampf danach).
+-- Nur im Stehen (when.standing). Nach mehr als RADIUS Metern Bewegung kommen die Waffen zurück (im Kampf danach).
 -- Zu wenig Taschenplatz für die Waffen: Meldung, kein Wechsel.
+-- Fishing Buddy oder Better Fishing geladen: alles aus, nur der Tooltip bleibt.
 
 local KEY = "fishing"
 local MAIN_HAND, OFF_HAND = 16, 17
 local RADIUS = 5 -- Meter
 local TICK = 0.2 -- Sekunden je Bewegungsprüfung
-local WINDOW = 0.4 -- Sekunden für den zweiten Klick
-local BUTTON_NAME = "GlimpseProfessionsCastButton"
 local MODIFIERS = { SHIFT = true, CTRL = true, ALT = true, NONE = true } -- NONE = Doppelklick ohne Modifier
+local BUTTONS = { RightButton = true, LeftButton = true, MiddleButton = true, Button4 = true, Button5 = true }
 -- Übernehmen Auswerfen und Waffenwechsel selbst, dann bleibt hier nur der Tooltip
-local EXTERNAL = { "FishingBuddy" }
-local DISPLAY = { FishingBuddy = "Fishing Buddy" }
+local EXTERNAL = { "FishingBuddy", "BetterFishing" }
+local DISPLAY = { FishingBuddy = "Fishing Buddy", BetterFishing = "Better Fishing" }
 
 -- Blizzard-API gebündelt, damit Tests sie ersetzen können
 local bag = C_Container or {}
@@ -37,12 +36,6 @@ P.castApi = {
     GetAddOnMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata,
     NewTicker = C_Timer and C_Timer.NewTicker,
     After = C_Timer and C_Timer.After,
-    IsModifierDown = function(modifier)
-        if modifier == "CTRL" then return IsControlKeyDown() end
-        if modifier == "ALT" then return IsAltKeyDown() end
-        if modifier == "NONE" then return not (IsShiftKeyDown() or IsControlKeyDown() or IsAltKeyDown()) end
-        return IsShiftKeyDown()
-    end,
     Notice = function(text)
         if UIErrorsFrame then UIErrorsFrame:AddMessage(text, 0.1, 1, 0.1, 1) end
     end,
@@ -59,10 +52,10 @@ function P:CastModifier()
     return MODIFIERS[value] and value or "SHIFT"
 end
 
---- "SHIFT-BUTTON2" bzw. "BUTTON2"
-function P:CastBindingKey()
-    local modifier = self:CastModifier()
-    return modifier == "NONE" and "BUTTON2" or (modifier .. "-BUTTON2")
+--- Maustaste für den Doppelklick, Standard RightButton
+function P:CastButton()
+    local value = self:Opt(KEY, "castButton")
+    return BUTTONS[value] and value or "RightButton"
 end
 
 --- lokalisierter Tastenname
@@ -129,16 +122,6 @@ function P:SlotsNeeded(poleInBags)
     return needed
 end
 
-local button -- Secure-Button
--- Hängendes Mouselook beenden, außer eine Maustaste ist noch gedrückt (force ignoriert das)
-local function StopMouselook(force)
-    if force ~= true and IsMouseButtonDown and (IsMouseButtonDown("LeftButton") or IsMouseButtonDown("RightButton")) then return end
-    if IsMouselooking and IsMouselooking() and MouselookStop then MouselookStop() end
-end
-
-local swapAt -- GetTime() des letzten Waffenwechsels
-local armed = 0 -- damit ein alter Timer keine neuere Belegung löscht
-
 -- Ringpuffer für /gli prof cast
 local LOG_MAX = 25
 P.castLog = {}
@@ -150,11 +133,10 @@ end
 
 function P:CastLines()
     local lines = {}
-    local bound = GetBindingAction and GetBindingAction(self:CastBindingKey()) or "?"
     local blocked = self:CastBlockedBy()
     if blocked then lines[#lines + 1] = "cast shortcut off: " .. blocked .. " is loaded and handles casting and weapon changes" end
-    lines[#lines + 1] = format("cast shortcut: %s, key %s, hooked %s, button %s, binding now: %s", tostring(self:CastEnabled()),
-        self:CastModifier(), tostring(self.castHooked), tostring(button ~= nil), tostring(bound))
+    lines[#lines + 1] = format("cast shortcut: %s, key %s, registered with Glimpse %s", tostring(self:CastEnabled()),
+        self:CastShortcutText(), tostring(self.castRegistered == true))
     local state = self:CastDebugState()
     lines[#lines + 1] = format("pole equipped %s, saved weapons %s, moved %.1f m", tostring(self:IsPoleEquipped()),
         tostring(state.saved ~= nil), state.moved)
@@ -241,85 +223,36 @@ function P:CastResume()
     if Saved(self) then Watch(self) end
 end
 
-
---- Secure-Button für "Fischen", Attribute nur außerhalb des Kampfes
-local function EnsureButton(self)
-    if button or not CreateFrame then return button end
-    button = CreateFrame("Button", BUTTON_NAME, UIParent, "SecureActionButtonTemplate")
-    -- je nach CVar "Aktionstasten beim Drücken auslösen" zaubert der Client bei Down oder Up
-    button:RegisterForClicks("AnyDown", "AnyUp")
-    button:SetAttribute("type", "spell")
-
-    button:SetScript("PreClick", function(_, mouseButton, down)
-        if api.InCombatLockdown() then Log("click on the button in combat") return end
-        local name = P.SpellName(P:GetProfession(KEY).reference)
-        if name then button:SetAttribute("spell", name) end
-        -- Down und Up kommen beide an, nach einem Wechsel nicht gleich nochmal wechseln
-        local now = GetTime and GetTime() or 0
-        local ready, lureMacro = false, nil
-        if swapAt and now - swapAt < 0.6 then
-            Log(format("button clicked (%s, down=%s): same click, no cast", tostring(mouseButton), tostring(down)))
-        else
-            ready = P:PreparePole()
-            -- ohne Köder: dieser Klick ködert, der nächste wirft
-            lureMacro = ready and P.LureMacro and P:LureMacro() or nil
-            if lureMacro then ready = false Log("applying lure: " .. lureMacro:gsub("\n", " | ")) end
-            if not ready then swapAt = now end
-            Log(format("button clicked (%s, down=%s): spell %s, pole ready %s -> %s", tostring(mouseButton), tostring(down),
-                tostring(name), tostring(ready), ready and "cast" or "no cast"))
-        end
-        if lureMacro then
-            button:SetAttribute("macrotext", lureMacro)
-            button:SetAttribute("type", "macro")
-        else
-            button:SetAttribute("type", ready and "spell" or nil)
-        end
-    end)
-    button:SetScript("PostClick", function(_, _, down)
-        if down then return end
-        -- Up kam beim Spiel nicht an, Mouselook würde hängen bleiben
-        StopMouselook()
-        if api.After then api.After(0.1, StopMouselook) end
-        if api.InCombatLockdown() then return end
-        ClearOverrideBindings(button)
-    end)
-    return button
+--- Prepare des Doppelklick-Handlers: Aktion für den Secure-Button des Cores oder nil
+function P:CastPrepare()
+    local name = P.SpellName(self:GetProfession(KEY).reference)
+    local ready = self:PreparePole()
+    -- ohne Köder: dieser Klick ködert, der nächste wirft
+    local lureMacro = ready and self.LureMacro and self:LureMacro() or nil
+    if lureMacro then
+        Log("applying lure: " .. lureMacro:gsub("\n", " | "))
+        return { type = "macro", macrotext = lureMacro }
+    end
+    Log(format("double click: spell %s, pole ready %s -> %s", tostring(name), tostring(ready), (ready and name) and "cast" or "no cast"))
+    if ready and name then return { type = "spell", spell = name } end
 end
 
-local DOUBLE_MIN = 0.03 -- Sekunden, schneller = Prellen
-local lastPress
-
---- GLOBAL_MOUSE_DOWN: Erst der zweite Klick wird gebunden, der erste bleibt normal beim Spiel (Kamera, Auswahl).
-function P:CastOnMouseDown(_, mouseButton)
-    if mouseButton ~= "RightButton" or not self:CastEnabled() then return end
-    if api.InCombatLockdown() or not api.IsModifierDown(self:CastModifier()) then lastPress = nil return end
-
-    local now = GetTime and GetTime() or 0
-    local gap = lastPress and (now - lastPress)
-    if not gap or gap <= DOUBLE_MIN or gap >= WINDOW then
-        lastPress = now
-        return
-    end
-    lastPress = nil
-
-    local frame = EnsureButton(self)
-    if not frame then return end
-    SetOverrideBindingClick(frame, true, self:CastBindingKey(), BUTTON_NAME)
-    Log("double right click: binding set")
-    -- Up gehört jetzt dem Button, Mouselook muss hier enden
-    StopMouselook(true)
-    armed = armed + 1
-    local mine = armed
-    if api.After then
-        api.After(WINDOW, function()
-            if armed == mine and not api.InCombatLockdown() then ClearOverrideBindings(frame) end
-        end)
-    end
-end
+local handler = {
+    title = "Professions: " .. L["Fishing"],
+    modifier = function() return P:CastModifier() end,
+    button = function() return P:CastButton() end,
+    priority = 10,
+    when = { standing = true },
+    -- Schalter und Fishing Buddy erst beim Klick prüfen, die Ladereihenfolge ist beliebig
+    Match = function() return P:CastEnabled() end,
+    Prepare = function() return P:CastPrepare() end,
+}
 
 function P:CastEnable()
-    self:RegisterEvent("GLOBAL_MOUSE_DOWN", "CastOnMouseDown")
-    self.castHooked = true
+    if Glimpse.RegisterDoubleClick then
+        Glimpse:RegisterDoubleClick(KEY, handler)
+        self.castRegistered = true
+    end
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "CastOnRegen")
     self:RegisterEvent("UNIT_SPELLCAST_SENT", "CastOnSpell")
     self:RegisterEvent("UNIT_SPELLCAST_FAILED", "CastOnSpell")
@@ -328,8 +261,8 @@ function P:CastEnable()
 end
 
 function P:CastDisable()
-    self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
-    self.castHooked = nil
+    if self.castRegistered and Glimpse.UnregisterDoubleClick then Glimpse:UnregisterDoubleClick(KEY) end
+    self.castRegistered = nil
     self:UnregisterEvent("PLAYER_REGEN_ENABLED")
     self:UnregisterEvent("UNIT_SPELLCAST_SENT")
     self:UnregisterEvent("UNIT_SPELLCAST_FAILED")
@@ -348,13 +281,13 @@ function P:CastOnSpell(event, a, b, c, d)
 end
 
 function P:CastOnRegen()
-    -- im Kampf nicht löschbare Belegung nachholen
-    if button and ClearOverrideBindings then ClearOverrideBindings(button) end
     if self.restorePending then self:RestoreWeapons() end
+    if self.findFishPending and self.EnableFindFish then self:EnableFindFish() end
 end
 
---- "Umschalt + Doppelter Rechtsklick" bzw. "Doppelter Rechtsklick"
+--- "Umschalt + Doppelter Rechtsklick" bzw. "Doppelter Rechtsklick", bei zentraler Taste die des Cores
 function P:CastShortcutText()
+    if self.castRegistered and Glimpse.GetDoubleClickText then return Glimpse:GetDoubleClickText(KEY) end
     if self:CastModifier() == "NONE" then return L["Double right click"] end
     return format("%s + %s", self:CastModifierName(), L["Double right click"])
 end

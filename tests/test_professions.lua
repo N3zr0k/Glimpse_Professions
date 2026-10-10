@@ -6,7 +6,7 @@ local function setup()
     local Glimpse = stub.newGlimpse()
     _G.Enum = { TooltipDataType = { Spell = 1, Object = 2 }, ItemClass = { Weapon = 2 }, ItemWeaponSubclass = { Fishingpole = 20 } }
     for _, file in ipairs({ "Core/Professions.lua", "Core/Skills.lua", "Core/Blizzard.lua", "Core/Tooltip.lua", "Core/Probe.lua",
-        "Core/Events.lua", "Core/Options.lua", "Modules/Fishing/Fishing.lua", "Modules/Fishing/FishingStats.lua", "Modules/Fishing/FishingBuffs.lua", "Modules/Fishing/FishingCast.lua", "Commands/Prof.lua" }) do
+        "Core/Events.lua", "Core/Options.lua", "Modules/Fishing/Fishing.lua", "Modules/Fishing/FishingRecord.lua", "Modules/Fishing/FishingStats.lua", "Modules/Fishing/FishingBuffs.lua", "Modules/Fishing/FishingCast.lua", "Modules/Fishing/FishingJournal.lua", "Modules/Fishing/FishingSources.lua", "Commands/Prof.lua" }) do
         stub.load(file, "Glimpse_Professions")
     end
     local P = Glimpse:GetModule("Professions")
@@ -229,7 +229,7 @@ test("Professions: Optionen: Tab Allgemein und ein Tab je Beruf, Schalter speich
     eq(args.statBlizzard.args.stat1518.disabled(), false, "Statistik an")
     args.stats.set(nil, false)
     eq(args.statBlizzard.args.stat1518.disabled(), true, "Statistik aus sperrt die Auswahl")
-    eq(args.statAddon.args.own.disabled(), true, "und den Schalter von Glimpse: Statistics")
+    eq(args.statAddon.args.own.disabled(), true, "und den Schalter der Zähler")
     eq(args.example, nil, "kein Beispiel mehr")
     eq(args.showEmpty, nil, "keine Option für leere Werte")
 
@@ -257,66 +257,112 @@ test("Professions: Schwimmer: Objekt ohne ID während des Angelns zeigt die Zeil
     eq(P:ObjectLines({ name = "Schwimmer" }), nil, "Schalter aus")
 end)
 
-test("Professions: Schwimmer: Zähler von Glimpse: Statistics über die Schnittstelle, nur dieser Charakter", function()
+-- Glimpse: Database im Kleinen: ein Namespace, Zeiträume zählen wie gesamt
+local function FakeDatabase()
+    local data = { counts = {}, zones = {}, seen = {} }
+    local function Ids(kind) data.counts[kind] = data.counts[kind] or {} return data.counts[kind] end
+    local ns = {}
+    function ns:Count(kind, id, mapID, amount)
+        local ids = Ids(kind)
+        ids[id or 0] = (ids[id or 0] or 0) + (amount or 1)
+        if mapID then data.zones[kind .. "/" .. tostring(id or 0) .. "/" .. mapID] = (data.zones[kind .. "/" .. tostring(id or 0) .. "/" .. mapID] or 0) + (amount or 1) end
+        data.seen[kind] = data.seen[kind] or 1767225600
+        return true
+    end
+    function ns:GetCount(kind, id)
+        local total = 0
+        for key, n in pairs(Ids(kind)) do if id == nil or key == id then total = total + n end end
+        return total
+    end
+    function ns:GetCounts(kind) return Ids(kind) end
+    function ns:GetSeen(kind) return data.seen[kind] end
+    local DB = { data = data, ns = ns }
+    function DB:Register(name, options) self.registered = { name = name, options = options } return ns end
+    function DB:Get() return self.registered and ns or nil end
+    return DB
+end
+
+test("Professions: Angeln wird in Glimpse: Database gezählt, ein Fang nur nach einem Wurf", function()
     local e = setup()
     local P, Glimpse = e.P, e.Glimpse
+    local DB = FakeDatabase()
+    _G.GlimpseDB = DB
+    Glimpse.IDs = { ZoneKey = function() return 1429 end }
+    local events = {}
+    P.RegisterEvent = function(_, event, func) events[event] = func end
+    P:FishingRecordEnable()
+    eq(DB.registered.name, "fishing", "Namespace")
+    eq(DB.registered.options.area, "Professions", "Bereich")
+
+    local loot = { fishing = true, items = { "item:6303", "item:6358" } }
+    P.recordApi.IsFishingLoot = function() return loot.fishing end
+    P.recordApi.GetNumLootItems = function() return #loot.items end
+    P.recordApi.GetLootSlotType = function() return 1 end
+    P.recordApi.GetLootSlotLink = function(slot) return loot.items[slot] end
+    P.recordApi.GetLootSlotInfo = function(slot) return nil, nil, slot == 1 and 2 or 1 end
+
+    events.LOOT_OPENED("LOOT_OPENED")
+    eq(DB.ns:GetCount("catch"), 0, "ohne Wurf kein Fang")
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "target", "guid", 7620)
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 133)
+    eq(DB.ns:GetCount("cast"), 0, "fremde Einheit oder anderer Zauber")
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 7620)
+    events.LOOT_OPENED("LOOT_OPENED")
+    events.LOOT_OPENED("LOOT_OPENED")
+    eq(DB.ns:GetCount("cast"), 1, "Wurf")
+    eq(DB.ns:GetCount("casttier", 75), 1, "Wurf je Stufe")
+    eq(DB.ns:GetCount("catch"), 1, "Fang nur einmal")
+    eq(DB.ns:GetCount("fish", 6303), 2, "Menge")
+    eq(DB.ns:GetCount("drop:1429", 6303), 1, "Fenster mit Item")
+    eq(DB.ns:GetCount("loot:1429", 6303), 2, "Menge je Zone")
+    eq(DB.ns:GetCount("looted", 1429), 1, "Fenster je Zone")
+    eq(DB.data.zones["cast/0/1429"], 1, "Wurf mit Zone")
+
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 7620)
+    loot.fishing = false
+    events.LOOT_OPENED("LOOT_OPENED")
+    eq(DB.ns:GetCount("catch"), 0 + 1, "anderes Beutefenster zählt nicht")
+    _G.GlimpseDB, Glimpse.IDs = nil, nil
+end)
+
+test("Professions: Schwimmer: Zähler aus Glimpse: Database, nur dieser Charakter", function()
+    local e = setup()
+    local P = e.P
     P.api.UnitChannelInfo = function() return "Angeln" end
     local function bobber() return text(P:ObjectLines({ name = "Schwimmer" })) end
-    eq(#bobber(), 1, "ohne Statistics nur die Fertigkeit")
-    eq(P:StatisticsAddonInfo(), nil, "kein Hinweis")
-    eq(P:BuildOptions().fishing.args.statAddon.hidden(), true, "Rahmen fehlt ohne Addon")
+    eq(#bobber(), 1, "ohne Database nur die Fertigkeit")
+    eq(P:BuildOptions().fishing.args.statAddon.hidden(), true, "Rahmen fehlt ohne Database")
 
-    local asked, answer
-    Glimpse.Statistics = { GetInfo = function() return { api = 4, available = true, version = "0.1.50-alpha.1" } end,
-        Query = function(_, request) asked = request return answer end }
-    P.statsApi.GetAddOnMetadata = function(_, field) return ({ IconTexture = "Interface\\Icons\\X" })[field] end
-    answer = { ok = true, sinceText = "07.10.2026",
-        labels = { since = "Erfasst seit", periods = { [1] = "heute", [7] = "7 Tage" } },
-        topics = { fishing = { hasData = true,
-            metrics = { casts = { label = "Angelwürfe", total = 72, periods = { [1] = 72, [7] = 72 } },
-                catches = { label = "Angelfänge", total = 57, periods = { [1] = 53, [7] = 53 } },
-                fish = { label = "Gefangene Fische", total = 52, periods = { [1] = 0, [7] = 0 } } },
-            derived = { missed = { label = "Würfe ohne Fang", value = 15 },
-                rate = { label = "Fangquote", value = 0.79, tiers = { { name = "Lehrling", value = 40 / 60, numerator = 40, denominator = 60 },
-                    { name = "Geselle", value = 1, numerator = 12, denominator = 12 } } } } } } }
+    local DB = FakeDatabase()
+    _G.GlimpseDB = DB
+    DB:Register("fishing", {})
+    eq(#bobber(), 1, "nichts gezählt: keine Zeilen")
+    for _ = 1, 60 do DB.ns:Count("casttier", 75) end
+    for _ = 1, 12 do DB.ns:Count("casttier", 150) end
+    for _ = 1, 40 do DB.ns:Count("catchtier", 75) end
+    for _ = 1, 12 do DB.ns:Count("catchtier", 150) end
+    DB.ns:Count("cast", 0, nil, 72)
+    DB.ns:Count("catch", 0, nil, 52)
+    DB.ns:Count("fish", 6303, nil, 52)
+
     local lines = bobber()
     eq(lines[2], "---", "Trennlinie")
-    eq(lines[3], "|cffffd100Glimpse: Statistics|r", "gelbe Überschrift mit dem Namen des Addons")
-    eq(lines[4], "|cff999999Erfasst seit 07.10.2026|r", "seit wann aufgezeichnet wird")
-    eq(lines[5], "   Angelwürfe: |cffffffff72|r  |cff66ccffheute 72 · 7 Tage 72|r", "Würfe mit heute und 7 Tagen, eingerückt")
-    eq(lines[6], "   Angelfänge: |cffffffff57|r  |cff66ccffheute 53 · 7 Tage 53|r", "Fänge")
-    eq(lines[7], "   Würfe ohne Fang: |cffffffff15|r", "ohne Fang"); eq(lines[8], "   Fangquote: |cffffffff79 %|r", "Quote gesamt")
-    eq(lines[9], "   Fangquote Lehrling: |cffffffff67 %|r  |cff999999(40/60)|r", "Quote je Stufe")
-    eq(lines[10], "   Fangquote Geselle: |cffffffff100 %|r  |cff999999(12/12)|r", "zweite Stufe")
-    eq(lines[11], "   Gefangene Fische: |cffffffff52|r", "Fische ohne Summen, wenn es keine gibt"); eq(#lines, 11, "Zeilen")
-    eq(asked.scope, "char", "nur dieser Charakter"); eq(asked.topics[1], "fishing", "nur Angeln")
-    answer.topics.fishing.derived.rate.tiers = { answer.topics.fishing.derived.rate.tiers[1] }
-    eq(#bobber(), 9, "mit nur einer Stufe keine Zeilen je Stufe")
+    eq(lines[3], "|cffffd100Glimpse counters|r", "Überschrift")
+    eq(lines[4], "|cff999999Recorded since " .. os.date("%d/%m/%Y", 1767225600) .. "|r", "seit wann")
+    eq(lines[5], "   Casts: |cffffffff72|r  |cff66ccfftoday 72 · 7 days 72|r", "Würfe mit heute und 7 Tagen, eingerückt")
+    eq(lines[6], "   Catches: |cffffffff52|r  |cff66ccfftoday 52 · 7 days 52|r", "Fänge")
+    eq(lines[7], "   Casts without catch: |cffffffff20|r", "ohne Fang")
+    eq(lines[8], "   Catch rate: |cffffffff72 %|r", "Quote gesamt")
+    eq(lines[9]:find("Catch rate .-: |cffffffff67 %%|r  |cff999999%(40/60%)|r") ~= nil, true, "Quote je Stufe")
+    eq(lines[11]:find("Fish caught", 1, true) ~= nil, true, "Fische")
+    eq(#lines, 11, "Zeilen")
     local spell = text(P:SpellLines({ id = 7620 }))
-    eq(table.concat(spell, "\n"):find("Fangquote: |cffffffff79 %|r", 1, true) ~= nil, true, "auch im Tooltip des Zaubers")
-    answer.topics.fishing.hasData = false
-    eq(#bobber(), 1, "nichts gezählt: keine Zeilen")
-    answer.topics.fishing.hasData = true
-    local name, version, icon = P:StatisticsAddonInfo()
-    eq(name, "Glimpse: Statistics", "Name"); eq(version, "0.1.50-alpha.1", "Version"); eq(icon, "Interface\\Icons\\X", "Symbol")
-    local args = P:BuildOptions().fishing.args
-    eq(args.statAddon.hidden(), false, "Rahmen da")
-    eq(args.statAddon.name():find("Glimpse: Statistics", 1, true) ~= nil and args.statAddon.name():find("v0.1.50-alpha.1", 1, true) ~= nil, true, "Überschrift mit Name und Version")
-    eq(args.statAddon.args.installed.name:find("installed", 1, true) ~= nil, true, "installiert"); eq(args.statAddon.args.own.name, "Show the counters of Glimpse: Statistics", "Schalter")
+    eq(table.concat(spell, "\n"):find("Catch rate: |cffffffff72 %|r", 1, true) ~= nil, true, "auch im Tooltip des Zaubers")
 
+    eq(P:BuildOptions().fishing.args.statAddon.hidden(), false, "Rahmen da")
     P:SetOpt("fishing", "own", false)
     eq(#bobber(), 1, "ausgeschaltet")
-    P:SetOpt("fishing", "own", true)
-    Glimpse.Statistics.GetInfo = function() return { api = 3, available = true } end
-    eq(P:StatisticsAddon(), nil, "API 3 hat keine Datenschnittstelle: nicht erkannt")
-    Glimpse.Statistics.GetInfo = function() return { api = 4, available = false } end
-    eq(P:StatisticsAddon(), nil, "Daten nicht lesbar: nicht erkannt")
-    Glimpse.Statistics.GetInfo = function() return { api = 4, available = true } end
-    Glimpse.Statistics.Query = function() return "Unsinn" end
-    eq(#bobber(), 1, "Antwort unbrauchbar: keine Zeilen")
-    Glimpse.Statistics.Query = function() error("kaputt") end
-    eq(#bobber(), 1, "Schnittstelle wirft einen Fehler: keine Zeilen")
-    Glimpse.Statistics = nil
+    _G.GlimpseDB = nil
 end)
 
 test("Professions: Tooltip und Ereignisse werden angemeldet", function()
@@ -447,32 +493,23 @@ test("Angel auswerfen: Meldungen im Kampf und ohne Angel, Angel schon in der Han
     eq(P:CastModifier(), "SHIFT", "Standard"); P.account.fishing.castKey = "ALT"
     eq(P:CastModifier(), "ALT", "gewählt"); P.account.fishing.castKey = "x"
     eq(P:CastModifier(), "SHIFT", "ungültig: Standard")
-    eq(P:BuildOptions().fishing.args.castKey.get(), "SHIFT", "Option")
-    eq(P:BuildOptions().fishing.args.castClick.name(), "   + Double right click", "neben der Taste nur der feste Teil, mit Abstand")
+    local args = P:BuildOptions().fishing.args
+    args.doubleClickModifier.set(nil, "CTRL")
+    eq(P:CastModifier(), "CTRL", "Auswahl des Cores schreibt castKey")
+    args.doubleClickButton.set(nil, "Button4")
+    eq(P:CastButton(), "Button4", "Maustaste")
+    P.account.fishing.castButton = "x"
+    eq(P:CastButton(), "RightButton", "ungültig: Rechtsklick")
     P.account.fishing.cast = false
-    eq(P:BuildOptions().fishing.args.castClick.name(), "|cff808080   + Double right click|r", "Kürzel aus: Text grau")
-    P.account.fishing.cast = true
+    eq(args.doubleClickModifier.disabled(), true, "Kürzel aus: Auswahl grau")
+    P.account.fishing.cast, P.account.fishing.castKey = true, "SHIFT"
     eq(P:CastShortcutText(), "SHIFT + Double right click", "Tooltip: Taste und Rechtsklick")
 
     -- ohne Taste: nur der doppelte Rechtsklick
     P.account.fishing.castKey = "NONE"
     eq(P:CastModifier(), "NONE", "keine Taste wählbar")
-    eq(P:CastBindingKey(), "BUTTON2", "Belegung ohne Taste"); eq(P:CastShortcutText(), "Double right click", "Tooltip ohne Taste")
-    eq(P:BuildOptions().fishing.args.castClick.name(), "   Double right click", "Text ohne Plus")
-    eq(P:BuildOptions().fishing.args.castKey.values().NONE, "None", "Eintrag Keine")
-    local down = { shift = false, ctrl = false, alt = false }
-    _G.IsShiftKeyDown, _G.IsControlKeyDown, _G.IsAltKeyDown = function() return down.shift end, function() return down.ctrl end, function() return down.alt end
-    local original = P.castApi.IsModifierDown
-    -- die echte Funktion aus FishingCast.lua prüfen
-    stub.load("Modules/Fishing/FishingCast.lua", "Glimpse_Professions")
-    local real = P.castApi.IsModifierDown
-    eq(real("NONE"), true, "ohne Taste: Rechtsklick allein gilt")
-    down.shift = true
-    eq(real("NONE"), false, "mit gedrückter Umschalttaste gilt er nicht")
-    eq(real("SHIFT"), true, "Umschalt")
-    P.castApi.IsModifierDown = original
+    eq(P:CastShortcutText(), "Double right click", "Tooltip ohne Taste")
     P.account.fishing.castKey = "SHIFT"
-    eq(P:CastBindingKey(), "SHIFT-BUTTON2", "Belegung mit Taste")
 end)
 
 test("Angel auswerfen: /gli prof cast zeigt Zustand und Protokoll", function()
@@ -497,14 +534,14 @@ test("Angel auswerfen: mit Fishing Buddy nur der Tooltip, keine Anzeige und kein
     local function joined() return table.concat(text(P:SpellLines({ id = 7620 })), "\n") end
     eq(joined():find("Double right click", 1, true) ~= nil, true, "Kürzel im Tooltip")
     local args = P:BuildOptions().fishing.args
-    eq(args.cast.hidden(), false, "Option sichtbar"); eq(args.castKey.hidden(), false, "Taste sichtbar")
+    eq(args.cast.hidden(), false, "Option sichtbar"); eq(args.doubleClickModifier.hidden(), false, "Taste sichtbar")
 
     loaded.FishingBuddy = true
     eq(P:CastBlockedBy(), "FishingBuddy", "erkannt"); eq(P:CastEnabled(), false, "aus")
     eq(joined():find("Double right click", 1, true), nil, "kein Kürzel im Tooltip")
     eq(joined():find("Fishing skill", 1, true) ~= nil, true, "der Rest des Tooltips bleibt")
-    eq(args.cast.hidden(), true, "Schalter versteckt"); eq(args.castKey.hidden(), true, "Taste versteckt")
-    eq(args.castClick.hidden(), true, "Text versteckt");     eq(P:CastLines()[1]:find("FishingBuddy", 1, true) ~= nil, true, "Hinweis in /gli prof cast")
+    eq(args.cast.hidden(), true, "Schalter versteckt"); eq(args.doubleClickModifier.hidden(), true, "Taste versteckt")
+    eq(args.doubleClickButton.hidden(), true, "Maustaste versteckt"); eq(P:CastLines()[1]:find("FishingBuddy", 1, true) ~= nil, true, "Hinweis in /gli prof cast")
 
     -- Hinweis in den Optionen: nur mit Fishing Buddy, mit Version
     eq(args.castBlocked.hidden(), false, "Hinweis sichtbar")
@@ -522,6 +559,12 @@ test("Angel auswerfen: mit Fishing Buddy nur der Tooltip, keine Anzeige und kein
     eq(args.castBlocked.image(), "Interface\\Icons\\Trade_Fishing", "das Symbol des Addons")
     loaded.FishingBuddy = nil
     eq(args.castBlocked.hidden(), true, "ohne Fishing Buddy kein Hinweis")
+
+    loaded.BetterFishing = true
+    eq(P:CastBlockedBy(), "BetterFishing", "Better Fishing erkannt"); eq(P:CastEnabled(), false, "aus")
+    eq(select(1, P:CastBlockedByInfo()), "Better Fishing", "Anzeigename")
+    eq(args.castBlocked.hidden(), false, "Hinweis sichtbar")
+    loaded.BetterFishing = nil
 end)
 
 test("Buffs: Glänzende Silbermünze zählt zum Gesamtbonus und steht als eigener Wert und in der Liste", function()
@@ -604,55 +647,47 @@ test("Köder: bester Köder aus dem Rucksack wird auf die Angel ohne Köder ange
     eq(P:LureMacro(), nil, "kein Köder im Rucksack")
 end)
 
-test("Angel auswerfen: Doppelklick wird beim zweiten Drücken erkannt, der erste Klick bleibt unberührt", function()
+test("Angel auswerfen: Doppelklick über den Verteiler im Core, nur im Stehen", function()
     local e = castSetup()
-    local P = e.P
-    local now, bound, cleared, stops = 0, {}, 0, 0
-    _G.GetTime = function() return now end
-    _G.UIParent = {}
-    _G.CreateFrame = function()
-        local f = { attrs = {}, scripts = {} }
-        function f:RegisterForClicks() end
-        function f:SetAttribute(k, v) self.attrs[k] = v end
-        function f:SetScript(name, fn) self.scripts[name] = fn end
-        return f
-    end
-    _G.SetOverrideBindingClick = function(_, _, key, name) bound[#bound + 1] = key .. ">" .. name end
-    _G.ClearOverrideBindings = function() cleared = cleared + 1 end
-    _G.IsMouselooking = function() return true end
-    _G.MouselookStop = function() stops = stops + 1 end
-    _G.IsMouseButtonDown = function() return true end -- die rechte Taste ist beim zweiten Drücken unten
-    e.mod = true
-    P.castApi.IsModifierDown = function() return e.mod end
-    local after = {}
-    P.castApi.After = function(_, fn) after[#after + 1] = fn end
-    local function press(button, at) now = at; P:CastOnMouseDown("GLOBAL_MOUSE_DOWN", button or "RightButton") end
+    local P, Glimpse = e.P, e.Glimpse
+    P.RegisterEvent, P.UnregisterEvent = function() end, function() end
+    P:CastEnable()
+    local h = Glimpse.doubleClicks.fishing
+    eq(h ~= nil, true, "angemeldet"); eq(h.when.standing, true, "nur im Stehen"); eq(h.button(), "RightButton", "Rechtsklick")
+    eq(h.modifier(), "SHIFT", "Taste aus den Optionen")
+    P.account.fishing.castKey = "ALT"; eq(h.modifier(), "ALT", "geänderte Taste"); P.account.fishing.castKey = "SHIFT"
+    eq(h.Match(), true, "an")
 
-    press("RightButton", 10)
-    eq(#bound, 0, "der erste Klick legt nichts an"); eq(stops, 0, "und beendet nichts")
-    press("RightButton", 10.02)
-    eq(#bound, 0, "zu schnell zählt nicht als zweiter Klick")
-    press("RightButton", 10.2)
-    eq(bound[1], "SHIFT-BUTTON2>GlimpseProfessionsCastButton", "der zweite Klick belegt den Knopf")
-    eq(stops, 1, "die Maussteuerung endet, auch wenn die Maustaste gedrückt ist")
-    eq(#after, 1, "Zeitgeber zum Aufräumen")
-    after[1]()
-    eq(cleared, 1, "Belegung wird wieder gelöscht")
+    -- ohne Angel: Angel anlegen, nichts wirken
+    eq(h.Prepare({}), nil, "erst die Angel"); eq(e.equips[1][1], 6256, "Angel angelegt")
+    -- Angel in der Hand: Fischen
+    local action = h.Prepare({})
+    eq(action.type, "spell", "Zauber"); eq(action.spell, "Angeln", "Fischen")
+    -- ohne Köder: Makro
+    P.LureMacro = function() return "/use 0 3\n/use 16" end
+    action = h.Prepare({})
+    eq(action.type, "macro", "Köder"); eq(action.macrotext, "/use 0 3\n/use 16", "Makro")
+    P.LureMacro = nil
 
-    press("RightButton", 20); press("RightButton", 20.6)
-    eq(#bound, 1, "zu spät: wieder ein erster Klick")
-    press("LeftButton", 20.8)
-    eq(#bound, 1, "linke Maustaste zählt nicht")
-    e.mod = false
-    press("RightButton", 30); press("RightButton", 30.2)
-    eq(#bound, 1, "ohne die Taste nichts")
-    e.mod, e.combat = true, true
-    press("RightButton", 40); press("RightButton", 40.2)
-    eq(#bound, 1, "im Kampf nichts")
-    e.combat = false
     P.account.fishing.cast = false
-    press("RightButton", 50); press("RightButton", 50.2)
-    eq(#bound, 1, "ausgeschaltet nichts")
+    eq(h.Match(), false, "Schalter aus")
+    P.account.fishing.cast = true
+    P.castApi.IsAddOnLoaded = function(name) return name == "FishingBuddy" end
+    eq(h.Match(), false, "Fishing Buddy übernimmt")
+    P.castApi.IsAddOnLoaded = function() return false end
+
+    -- zentrale Taste im Core: eigene Auswahl grau, Text vom Core
+    Glimpse.doubleClickCentral = true
+    local args = P:BuildOptions().fishing.args
+    eq(args.doubleClickModifier.disabled(), true, "Taste grau"); eq(args.doubleClickButton.disabled(), true, "Maustaste grau")
+    eq(P:CastShortcutText(), "ALT + Double right click", "Text vom Core")
+    Glimpse.doubleClickCentral = false
+    eq(args.doubleClickModifier.disabled(), false, "eigene Taste wieder wählbar")
+    P.account.fishing.castButton = "Button4"
+    eq(P:CastShortcutText(), "SHIFT + Double Button4", "eigene Maustaste im Text")
+
+    P:CastDisable()
+    eq(Glimpse.doubleClicks.fishing, nil, "abgemeldet")
 end)
 
 test("Professions: Zahlen aus Farbcodes oder Symbolen sind kein Angelbonus, lange Texte werden je Zeile gelesen", function()
@@ -670,4 +705,65 @@ test("Professions: Zahlen aus Farbcodes oder Symbolen sind kein Angelbonus, lang
     local buffs = P:FishingBuffs()
     eq(#buffs, 2, "nur die echten Boni"); eq(buffs[1].value, 10, "Wert ohne Farbcode"); eq(buffs[2].value, 15, "+15 aus der eigenen Zeile")
     eq(P.PlainText("|cffffd200Noch 40 |4Minute:Minuten;|r"), "Noch 40 ", "Text ohne Codes")
+end)
+
+test("Professions: Datenquellen für /gli probe db sources", function()
+    local e = setup()
+    local P, Glimpse = e.P, e.Glimpse
+    local lines = table.concat(Glimpse.dataSources.Glimpse_Professions(), "\n")
+    assert(lines:find("namespace fishing (not registered)", 1, true), "ohne Database kein Schreiber")
+    assert(lines:find("read live from the client", 1, true), "Spiel-Statistik")
+    assert(lines:find("Glimpse double-click", 1, true), "Auswerfen über den Core")
+
+    P.fishingNs = {}
+    P.castApi.IsAddOnLoaded = function(name) return name == "FishingBuddy" end
+    lines = table.concat(P:FishingSourceLines(), "\n")
+    assert(lines:find("namespace fishing (writer)", 1, true), "Schreiber")
+    assert(lines:find("left to FishingBuddy", 1, true), "Fishing Buddy")
+end)
+
+test("Angeln: Verwittertes Tagebuch im Tooltip, Fischsuche wird beim Login eingeschaltet", function()
+    local e = setup()
+    local P, Glimpse = e.P, e.Glimpse
+    local ja = P.journalApi
+    local known, tracking, set = false, { { name = "Kräutersuche", active = true, spellID = 2383 }, { name = "Fischsuche", active = false, spellID = 43308 } }, {}
+    ja.IsPlayerSpell = function(id) return id == 43308 and known end
+    ja.GetNumTrackingTypes = function() return #tracking end
+    ja.GetTrackingInfo = function(index) return tracking[index] end
+    ja.SetTracking = function(index, on) set[#set + 1] = index; tracking[index].active = on end
+    ja.InCombatLockdown = function() return e.combat end
+    local function joined() return table.concat(text(P:SpellLines({ id = 7620 })), "\n") end
+
+    -- Name aus den Locales, solange der Client ihn nicht kennt
+    eq(joined():find("Weather-Beaten Journal: |cffff2020not learned|r", 1, true) ~= nil, true, "nicht gelernt, rot")
+    eq(P:EnableFindFish(), "journal not learned", "ohne Tagebuch nichts")
+
+    known = true
+    P.journalName, P.journalRequested = nil, nil
+    Glimpse.IDs = { DescribeItem = function(_, id, callback) callback("x", id == 34109 and "Verwittertes Tagebuch" or nil) end }
+    eq(joined():find("Verwittertes Tagebuch: |cff20ff20learned|r", 1, true) ~= nil, true, "gelernt, grün, Name vom Client")
+
+    -- Login: einschalten, andere Verfolgung bleibt unberührt
+    P:OnSkillEvent("PLAYER_ENTERING_WORLD")
+    eq(set[1], 2, "Fischsuche eingeschaltet"); eq(#set, 1, "nur sie"); eq(tracking[1].active, true, "Kräutersuche bleibt")
+    eq(Glimpse.printed[#Glimpse.printed], "Find Fish switched on.", "Meldung")
+    eq(P:EnableFindFish(), "already on", "schon an")
+
+    -- im Kampf erst danach
+    tracking[2].active, e.combat = false, true
+    eq(P:EnableFindFish(), "in combat, after combat", "im Kampf vorgemerkt")
+    e.combat = false
+    P:CastOnRegen()
+    eq(tracking[2].active, true, "nach dem Kampf")
+
+    -- ältere Clients: einzelne Werte statt Tabelle
+    tracking[2].active = false
+    ja.GetTrackingInfo = function(index) local t = tracking[index] return t.name, "tex", t.active, "spell", nil, t.spellID end
+    eq(P:EnableFindFish(), "switched on", "auch mit einzelnen Werten")
+
+    -- Option aus
+    tracking[2].active = false
+    P:SetOpt("fishing", "findFish", false)
+    eq(P:EnableFindFish(), "option off", "abschaltbar"); eq(tracking[2].active, false, "bleibt aus")
+    eq(P:BuildOptions().fishing.args.findFish ~= nil, true, "Schalter in den Optionen")
 end)

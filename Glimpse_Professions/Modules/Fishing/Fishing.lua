@@ -115,17 +115,20 @@ local function Lines(self, def, compact)
             lines[#lines + 1] = format("%s\226\128\162|r %s%s|r %s+%d|r", COLOR.buff, COLOR.value, buff.name, COLOR.buff, buff.value)
         end
     end
-    local counters = self:StatisticsLines() or {}
+    local counters = self:CounterLines() or {}
     if compact then
         for _, line in ipairs(counters) do lines[#lines + 1] = line end
         return lines
     end
 
+    local journal = self.JournalLine and self:JournalLine()
+    if journal then lines[#lines + 1] = journal end
+
     if self:CastEnabled() and self.CastShortcutLines then
         for _, line in ipairs(self:CastShortcutLines()) do lines[#lines + 1] = line end
     end
 
-    -- Glimpse: Statistics vor der Blizzard-Statistik
+    -- eigene Zähler vor der Blizzard-Statistik
     for _, line in ipairs(counters) do lines[#lines + 1] = line end
 
     if self:Opt(key, "stats") then
@@ -160,7 +163,7 @@ end
 local function Options(self, def)
     local key = def.key
     local statsOff = function() return not self:Opt(key, "stats") end
-    -- Fishing Buddy übernimmt das Auswerfen
+    -- Fishing Buddy oder Better Fishing übernimmt das Auswerfen
     local castHidden = function() return self:CastBlockedBy() ~= nil end
 
     local args = {
@@ -175,7 +178,10 @@ local function Options(self, def)
         tier = self:Toggle(key, "tier", 2, L["Show the profession tier"],
             L["Shows the tier of the profession (Apprentice, Journeyman ...) as the heading of the tooltip."]),
         stats = self:Toggle(key, "stats", 4, L["Show statistics"],
-            L["Shows the statistics below a separator line: those Blizzard keeps for fishing and, if Glimpse: Statistics is installed, its counters. When switched off, both are hidden."]),
+            L["Shows the statistics below a separator line: those Blizzard keeps for fishing and the counters Glimpse records. When switched off, both are hidden."]),
+        journalHeader = { type = "header", order = 30, name = function() return self:JournalName() end },
+        findFish = self:Toggle(key, "findFish", 31, L["Switch on Find Fish automatically"],
+            L["After login or reload, and after reading the Weather-Beaten Journal, switches on Find Fish in the minimap tracking if it is off."]),
         castHeader = { type = "header", order = 20, name = L["Cast the fishing rod"] },
         castBlocked = {
             type = "description", order = 20.5, width = "full", fontSize = "medium",
@@ -188,40 +194,27 @@ local function Options(self, def)
             end,
         },
         cast = self:Toggle(key, "cast", 21, L["Cast with a shortcut"],
-            L["Casts the fishing rod with a double right click on the game world and the chosen key (or without a key: then every double right click casts). If you do not hold a fishing rod, your weapons are put away and the rod is equipped (the next double click casts); after you moved more than 5 meters, your weapons are equipped again. Needs free bag space."]),
+            L["Casts the fishing rod with a double click on the game world, using the modifier key and mouse button chosen below. Only while standing still and out of combat. If you do not hold a fishing rod, your weapons are put away and the rod is equipped (the next double click casts); after you moved more than 5 meters, your weapons are equipped again. Needs free bag space."]),
         lure = self:Toggle(key, "lure", 21.5, L["Apply the best lure automatically"],
             L["If the equipped fishing rod has no lure, the double click applies the best lure from your bags to it. The next double click casts."]),
-        castKey = {
-            type = "select", order = 22, name = L["Key"], style = "dropdown", width = 1, -- Vielfaches von 200 px
-            values = function()
-                return { SHIFT = self:CastModifierName("SHIFT"), CTRL = self:CastModifierName("CTRL"), ALT = self:CastModifierName("ALT"),
-                    NONE = self:CastModifierName("NONE") }
-            end,
-            sorting = { "SHIFT", "CTRL", "ALT", "NONE" },
-            get = function() return self:CastModifier() end,
-            set = function(_, value) self:SetOpt(key, "castKey", value) end,
-            disabled = function() return not self:CastEnabled() end,
-            hidden = castHidden,
-        },
-        castClick = {
-            type = "description", order = 23, width = 1.5, fontSize = "medium", hidden = castHidden,
-            -- description kennt kein disabled, daher selbst grau färben
-            name = function()
-                local text = "   " .. (self:CastModifier() == "NONE" and "" or "+ ") .. L["Double right click"]
-                return self:CastEnabled() and text or ("|cff808080" .. text .. "|r")
-            end,
-        },
     }
     args.cast.hidden = castHidden
     args.lure.hidden = castHidden
     args.lure.disabled = function() return not self:CastEnabled() end
+    -- Zusatztaste und Maustaste wie in allen Glimpse-Addons, bei zentraler Taste vom Core ausgegraut
+    if Glimpse.AddDoubleClickKeyOptions then
+        self.account[key] = self.account[key] or {}
+        Glimpse:AddDoubleClickKeyOptions(args, self.account[key], 22, { modifier = "castKey", button = "castButton",
+            disabled = function() return not self:CastEnabled() end })
+        args.doubleClickModifier.hidden, args.doubleClickButton.hidden = castHidden, castHidden
+    end
     -- beide in einer Zeile
     args.bonus.width, args.split.width = 1, 2
     for index, stat in ipairs(STATS) do
         args["stat" .. stat[1]] = self:Toggle(key, "stat" .. stat[1], 5 + index, self:BlizzardStatName(stat[1]) or L[stat[2]],
             format(L["Blizzard statistic %d."], stat[1]), statsOff)
     end
-    -- Unter "Statistiken" zwei Inline-Gruppen: Blizzard (Charakter) und, falls installiert, Glimpse: Statistics
+    -- Unter "Statistiken" zwei Inline-Gruppen: Blizzard (Charakter) und die eigenen Zähler (FishingStats.lua)
     args.statHeader = { type = "header", order = 4.9, name = P.ClientText("STATISTICS", "Statistics") }
     local blizzard = { type = "group", inline = true, order = 5, name = P.ClientText("CHARACTER", "Character"), args = {} }
     for _, stat in ipairs(STATS) do
@@ -231,21 +224,14 @@ local function Options(self, def)
     args.statBlizzard = blizzard
 
     args.statAddon = { type = "group", inline = true, order = 9,
-        hidden = function() return self:StatisticsAddon() == nil end,
+        hidden = function() return self:FishingCounters() == nil end,
         disabled = statsOff,
-        name = function()
-            local name, version = self:StatisticsAddonInfo()
-            if not name then return "" end
-            version = version and format(" |cff33ff33(%s)|r", version:find("^[vV]") and version or ("v" .. version)) or ""
-            return format("|cffffd100%s|r%s", name, version)
-        end,
+        name = format("|cffffd100%s|r", L["Glimpse counters"]),
         args = {
             description = { type = "description", order = 1, width = "full", fontSize = "medium",
                 name = format("|cff999999%s|r", L["Fishing counters of this character can be shown in the tooltip."]) },
-            installed = { type = "description", order = 2, width = "full", fontSize = "medium",
-                name = format("|TInterface\\RaidFrame\\ReadyCheck-Ready:16|t |cff33ff33%s|r", L["installed"]) },
-            own = self:Toggle(key, "own", 3, L["Show the counters of Glimpse: Statistics"],
-                L["Shows the fishing counters of Glimpse: Statistics for this character in the tooltips of the Fishing spell and of the fishing bobber."], statsOff),
+            own = self:Toggle(key, "own", 3, L["Show the fishing counters"],
+                L["Shows the fishing counters Glimpse records for this character in the tooltips of the Fishing spell and of the fishing bobber."], statsOff),
         },
     }
     return args
@@ -263,6 +249,9 @@ local function Probe(self, def)
         local lure, gear, combined = P.SplitBonus(skill.modifier, LureActive(self), self.char and self.char.fishingGear)
         lines[#lines + 1] = format("split: lure %d, equipment %d%s", lure, gear, combined and " (not separable yet)" or "")
     end
+    if self.JournalProbeLines then
+        for _, line in ipairs(self:JournalProbeLines()) do lines[#lines + 1] = line end
+    end
     for _, stat in ipairs(STATS) do
         lines[#lines + 1] = format("statistic %d (%s): %s", stat[1], tostring(self:BlizzardStatName(stat[1])), tostring(self:ReadStatistic(stat[1])))
     end
@@ -277,10 +266,11 @@ P:RegisterProfession("fishing", {
     spells = { 7620, 7731, 7732, 18248, 33095, 51294 }, -- Fischen, Ränge 1 bis 6
     reference = 7620,
     defaults = { tooltip = true, bonus = true, split = true, tier = true, stats = true, stat1518 = true, stat1456 = true, stat1526 = true,
-        own = true, cast = true, lure = true, castKey = "SHIFT" },
+        own = true, cast = true, lure = true, castKey = "SHIFT", castButton = "RightButton", findFish = true },
     options = Options,
     lines = Lines,
     objectLines = function(self, def) return Lines(self, def, true) end,
     refresh = Learn,
+    login = function(self) if self.EnableFindFish then self:EnableFindFish() end end,
     probe = Probe,
 })
