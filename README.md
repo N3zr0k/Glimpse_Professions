@@ -10,7 +10,10 @@
 </p>
 
 Extends the tooltips of profession spells with what you want to know about the profession: your skill with bonus, the
-profession tier and the statistics of the game. Every profession has its own tab in the options; fishing comes first.
+profession tier and the statistics of the game. Every profession has its own tab in the options.
+
+> **Fishing is the first profession.** More professions will follow over time; each one gets its own tab and its own
+> folder in the addon.
 
 Requires [Glimpse](https://github.com/N3zr0k/Glimpse) 0.3.7 or newer. For WoW Forever (interface 16001).
 
@@ -58,6 +61,9 @@ While a line is cast, the tooltip of the fishing bobber shows the skill line and
 * **Glimpse counters:** Professions records your fishing in Glimpse: Database (part of Glimpse): casts and catches per
   zone and per tier, and the fish you caught. The tooltip shows casts, catches, casts without catch, catch rate in total
   and per tier, fish caught and since when it counts. Counters from Glimpse: Statistics are taken over once.
+  A cast is counted when it ends: a catch counts as cast and catch, a line that runs out while you stand still as a cast
+  without catch. If you move, fall or are attacked while fishing, the attempt is cancelled and does not count; such
+  cancellations are only stored in the database (`castabort`) and not used in the numbers.
 * **Cast with a shortcut:** hold the chosen key (Shift, Ctrl, Alt or none) and double-click the game world with the chosen
   mouse button (right click by default) to cast.
   Without a rod in your hand your weapons (main hand and off hand) are put away and the rod is equipped; the next double
@@ -105,7 +111,11 @@ The folder must be called `Glimpse_Professions`. Optional: Fishing Buddy.
 
 A profession is one folder in `Modules/` (main file plus helpers, e.g. `Modules/Fishing/`), listed in `Modules/Modules.xml`; the main file calls `Glimpse.Professions:RegisterProfession(key, def)`
 (see the comment at the top of `Core/Professions.lua`): label, skill line, spell IDs, default options, the options of the
-tab (`options`) and the tooltip lines (`lines`). The tab appears in the options by itself.
+tab (`options`), the tooltip lines (`lines`), and optionally `enable`/`disable` (register events and collectors) and
+`commands` (sub-commands of `/gli prof`). The tab appears in the options by itself. Everything that belongs to one
+profession only stays in its folder; `Core/` knows no profession. All files are listed in [docs/Files.md](docs/Files.md),
+the features in [docs/FEATURES.md](docs/FEATURES.md), the texts for the CurseForge page in
+[docs/CURSEFORGE.md](docs/CURSEFORGE.md).
 
 The addon lives in the folder `Glimpse_Professions/` of the repository; link that folder into the AddOns folder
 (junction) and `/reload` after each change. The tests need the Glimpse repository next to this one (or `GLIMPSE_DIR`).

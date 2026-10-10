@@ -16,6 +16,9 @@ local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
 --   refresh     function(P, def), optional, bei Fertigkeits-/Ausrüstungsänderung
 --   login       function(P, def), optional, bei Login und Reload (PLAYER_ENTERING_WORLD)
 --   probe       function(P, def) -> Zeilen für /gli prof probe, optional
+--   enable      function(P, def), optional, beim Aktivieren des Addons (Ereignisse und Sammler anmelden)
+--   disable     function(P, def), optional, beim Deaktivieren
+--   commands    { name = function(P, def) -> Zeilen }, optional, Unterbefehle von /gli prof (z. B. /gli prof cast)
 local P = Glimpse:NewModule("Professions", nil, "AceEvent-3.0")
 
 --- Blizzard-Global (TOTAL, NONE, GENERAL ...) bevorzugen, sonst L[key]

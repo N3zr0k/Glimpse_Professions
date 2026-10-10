@@ -273,4 +273,16 @@ P:RegisterProfession("fishing", {
     refresh = Learn,
     login = function(self) if self.EnableFindFish then self:EnableFindFish() end end,
     probe = Probe,
+    enable = function(self)
+        if self.CastEnable then self:CastEnable() end
+        if self.FishingRecordEnable then self:FishingRecordEnable() end
+        if self.FishingJournalEnable then self:FishingJournalEnable() end
+    end,
+    disable = function(self) if self.CastDisable then self:CastDisable() end end,
+    commands = {
+        cast = function(self) return self:CastLines() end,
+        lure = function(self) return self:LureLines() end,
+        buffs = function(self) return self:BuffLines() end,
+        record = function(self) return self:FishingRecordLines() end,
+    },
 })

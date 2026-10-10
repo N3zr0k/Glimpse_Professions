@@ -1,4 +1,5 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Script file="FishingGear.lua"/>
     <Script file="Fishing.lua"/>
     <Script file="FishingRecord.lua"/>
     <Script file="FishingStats.lua"/>

@@ -8,10 +8,7 @@ P.api = {
     GetProfessionInfo = GetProfessionInfo,
     GetNumSkillLines = GetNumSkillLines,
     GetSkillLineInfo = GetSkillLineInfo,
-    GetWeaponEnchantInfo = GetWeaponEnchantInfo,
-    GetInventoryItemID = GetInventoryItemID,
     UnitChannelInfo = UnitChannelInfo,
-    GetItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant,
     GetSpellName = C_Spell and C_Spell.GetSpellName or nil,
     GetSpellInfo = GetSpellInfo,
     GetSpellSubtext = C_Spell and C_Spell.GetSpellSubtext or nil,
@@ -22,13 +19,6 @@ P.api = {
 }
 
 local api = P.api
-
--- Fallback-Werte, falls die Enums fehlen
-local ItemClass = Enum and Enum.ItemClass or {}
-local WEAPON = ItemClass.Weapon or 2
-local WeaponSubclass = Enum and Enum.ItemWeaponSubclass or {}
-local FISHING_POLE = WeaponSubclass.Fishingpole or 20
-local MAIN_HAND = 16 -- Inventarslot Waffenhand
 
 --- nil, solange die Daten nicht geladen sind
 function P.SpellName(spellID)
@@ -122,19 +112,6 @@ function P:GetSkill(def)
     return FromProfessions(def) or FromSkillLines(def)
 end
 
-function P:IsPoleItem(itemID)
-    if not (itemID and api.GetItemInfoInstant) then return false end
-    local _, _, _, _, _, classID, subClassID = api.GetItemInfoInstant(itemID)
-    return classID == WEAPON and subClassID == FISHING_POLE
-end
-
-function P:IsPoleEquipped()
-    if not api.GetInventoryItemID then return false end
-    local ok, id = pcall(api.GetInventoryItemID, "player", MAIN_HAND)
-    if not ok or not id then return false end
-    return self:IsPoleItem(id)
-end
-
 --- Kanalzauber des Berufs aktiv (Angeln: Schwimmer draußen)? Vergleich per Name, gilt für alle Ränge.
 function P:IsChannelingProfession(def)
     if not (api.UnitChannelInfo and def and def.reference) then return false end
@@ -142,14 +119,6 @@ function P:IsChannelingProfession(def)
     name = ok and self.Clean(name) or nil
     if type(name) ~= "string" then return false end
     return name ~= "" and name == self.SpellName(def.reference)
-end
-
---- Temporäre Verzauberung der Waffenhand (bei Angeln der Köder): aktiv, enchantID, Restzeit in ms
-function P:GetMainHandEnchant()
-    if not api.GetWeaponEnchantInfo then return false end
-    local ok, has, expiration, _, enchantID = pcall(api.GetWeaponEnchantInfo)
-    if not ok then return false end
-    return has == true or has == 1, enchantID, expiration
 end
 
 --- def zum Zauber, über ID oder Namen (Ränge heißen gleich), sonst nil

@@ -18,13 +18,17 @@ end
 
 function P:OnEnable()
     self:RegisterTooltips()
-    if self.CastEnable then self:CastEnable() end
-    if self.FishingRecordEnable then self:FishingRecordEnable() end
-    if self.FishingJournalEnable then self:FishingJournalEnable() end
+    for _, key in ipairs(self.order) do
+        local def = self.professions[key]
+        if def.enable then self.Protected(key .. " enable", def.enable, self, def) end
+    end
     for _, event in ipairs(EVENTS) do self:RegisterEvent(event, "OnSkillEvent") end
 end
 
 function P:OnDisable()
-    if self.CastDisable then self:CastDisable() end
+    for _, key in ipairs(self.order) do
+        local def = self.professions[key]
+        if def.disable then self.Protected(key .. " disable", def.disable, self, def) end
+    end
     for _, event in ipairs(EVENTS) do self:UnregisterEvent(event) end
 end

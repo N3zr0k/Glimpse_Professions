@@ -1,6 +1,6 @@
 # Glimpse: Professions – Features
 
-Stand 0.3.16. Berufe: bisher nur Angeln.
+Stand 0.3.17. Angeln ist der erste Beruf, weitere folgen mit der Zeit. Jeder Beruf hat einen eigenen Ordner unter `Modules/` und einen eigenen Tab in den Optionen.
 
 ## Angeln
 

@@ -6,7 +6,7 @@ local function setup()
     local Glimpse = stub.newGlimpse()
     _G.Enum = { TooltipDataType = { Spell = 1, Object = 2 }, ItemClass = { Weapon = 2 }, ItemWeaponSubclass = { Fishingpole = 20 } }
     for _, file in ipairs({ "Core/Professions.lua", "Core/Skills.lua", "Core/Blizzard.lua", "Core/Tooltip.lua", "Core/Probe.lua",
-        "Core/Events.lua", "Core/Options.lua", "Modules/Fishing/Fishing.lua", "Modules/Fishing/FishingRecord.lua", "Modules/Fishing/FishingStats.lua", "Modules/Fishing/FishingBuffs.lua", "Modules/Fishing/FishingCast.lua", "Modules/Fishing/FishingJournal.lua", "Modules/Fishing/FishingSources.lua", "Commands/Prof.lua" }) do
+        "Core/Events.lua", "Core/Options.lua", "Modules/Fishing/FishingGear.lua", "Modules/Fishing/Fishing.lua", "Modules/Fishing/FishingRecord.lua", "Modules/Fishing/FishingStats.lua", "Modules/Fishing/FishingBuffs.lua", "Modules/Fishing/FishingCast.lua", "Modules/Fishing/FishingJournal.lua", "Modules/Fishing/FishingSources.lua", "Commands/Prof.lua" }) do
         stub.load(file, "Glimpse_Professions")
     end
     local P = Glimpse:GetModule("Professions")
@@ -444,6 +444,30 @@ test("Professions: Tooltip und Ereignisse werden angemeldet", function()
     eq(P.char.fishingGear, nil, "andere Einheit")
     P:OnSkillEvent("PLAYER_EQUIPMENT_CHANGED")
     eq(P.char.fishingGear, 7, "gelernt")
+end)
+
+test("Professions: enable, disable und Unterbefehle kommen aus dem Beruf", function()
+    local e = setup()
+    local P, Glimpse = e.P, e.Glimpse
+    local calls = {}
+    P.RegisterTooltipLine = function() end
+    P.RegisterEvent = function() end
+    P.UnregisterEvent = function() end
+    P:RegisterProfession("test", { label = "Test", spells = {}, defaults = {},
+        enable = function(_, def) calls[#calls + 1] = "enable " .. def.key end,
+        disable = function() calls[#calls + 1] = "disable" end,
+        commands = { ping = function() return { "pong" } end } })
+    P:OnEnable(); P:OnDisable()
+    eq(calls[1], "enable test", "enable"); eq(calls[2], "disable", "disable")
+
+    local printed = {}
+    Glimpse.Print = function(_, line) printed[#printed + 1] = line end
+    Glimpse.commands.prof.func(nil, "ping")
+    eq(printed[1], "pong", "Unterbefehl des Berufs")
+    printed = {}
+    Glimpse.commands.prof.func(nil, "record")
+    eq(#printed > 0, true, "Unterbefehl von Angeln")
+    P.professions.test, P.order[#P.order] = nil, nil
 end)
 
 test("Professions: Befehl: Übersicht und probe", function()

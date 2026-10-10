@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.3.17] - 2026-10-10
+
+### Changed
+- Everything that belongs only to fishing now lives in the Fishing folder, a new profession needs no change in the core files
+
 ## [0.3.16] - 2026-10-10
 
 ### Added
@@ -21,7 +26,7 @@
 
 ### Added
 - Data sources shown in `/gli probe db sources`
-- First version: profession spell tooltips, one options tab per profession
+- First version: profession spell tooltips, one options tab per profession. Fishing is the first profession, more follow
 - Fishing: skill with lure, buff and equipment bonus, profession tier and game statistics
 - Fishing: casts, catches and fish are recorded in Glimpse: Database and shown in the tooltip
 - Fishing: cast with a key and double right click, equips the rod and applies the best lure

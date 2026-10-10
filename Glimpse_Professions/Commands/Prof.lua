@@ -4,7 +4,7 @@ local L = P.L
 
 -- /gli prof                         Berufe, Fertigkeit, Tooltip an/aus
 -- /gli prof probe [key]             Client-Rohdaten zu einem Beruf, z. B. fishing
--- /gli prof cast | lure | buffs | record     Angel-Details
+-- /gli prof <name>                  Unterbefehle der Berufe (Angeln: cast, lure, buffs, record)
 local function PrintLines(lines)
     for _, line in ipairs(lines) do Glimpse:Print(line) end
 end
@@ -13,21 +13,13 @@ local function OnCommand(_, args)
     local word, rest = strmatch(strtrim(args or ""), "^(%S*)%s*(.-)$")
     word = strlower(word)
 
-    if word == "cast" then
-        PrintLines(P:CastLines())
-        return
-    end
-    if word == "record" then
-        PrintLines(P:FishingRecordLines())
-        return
-    end
-    if word == "lure" then
-        PrintLines(P:LureLines())
-        return
-    end
-    if word == "buffs" then
-        PrintLines(P:BuffLines())
-        return
+    for _, key in ipairs(P.order) do
+        local def = P.professions[key]
+        local command = def.commands and def.commands[word]
+        if command then
+            PrintLines(command(P, def))
+            return
+        end
     end
     if word == "probe" then
         PrintLines(P:ProbeLines(rest ~= "" and strlower(rest) or nil))

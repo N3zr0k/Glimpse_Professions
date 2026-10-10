@@ -32,7 +32,9 @@ Alles unter dieser Zeile in den Beschreibungs-Editor (Markdown) kopieren.
 > **Glimpse: Professions only works together with [Glimpse](https://www.curseforge.com/wow/addons/glimpse).** Install Glimpse first (version 0.3.7 or newer), otherwise this addon does not load.
 > 👉 https://www.curseforge.com/wow/addons/glimpse
 
-Fishing in the tooltip, and a cast button for the lazy: **Glimpse: Professions** extends the tooltips of your professions with what you really want to know. Every profession has its own tab in the options. Fishing is first; more professions follow.
+Fishing in the tooltip, and a cast button for the lazy: **Glimpse: Professions** extends the tooltips of your professions with what you really want to know. Every profession has its own tab in the options.
+
+> **Fishing is the first profession. More professions will follow over time.**
 
 ## What you get for fishing
 
@@ -43,7 +45,7 @@ Fishing in the tooltip, and a cast button for the lazy: **Glimpse: Professions**
   - lure in green, buffs (for example the Shiny Silver Coin) in orange, equipment in blue
   - a list below names the lure and each buff with its value
 - The **statistics of the game** (fish caught, fish and other things caught, daily fishing quests)
-- Your **own counters**, recorded with Glimpse: Database: casts, catches, casts without catch, catch rate (in total and per tier) and since when it counts
+- Your **own counters**, recorded with Glimpse: Database: casts, catches, casts without catch, catch rate (in total and per tier) and since when it counts. A cast counts when it ends; if you move or are attacked while fishing, the attempt is cancelled and not counted
 
 **Cast with a shortcut**
 
@@ -65,7 +67,7 @@ No lure on your rod? The double click applies the best lure from your bags and t
 
 ## Commands
 
-`/gli prof` shows your professions. For troubleshooting: `/gli prof probe fishing`, `/gli prof cast`, `/gli prof buffs`, `/gli prof lure`.
+`/gli prof` shows your professions. For troubleshooting: `/gli prof probe fishing`, `/gli prof cast`, `/gli prof buffs`, `/gli prof lure`, `/gli prof record`.
 
 ## Links
 
