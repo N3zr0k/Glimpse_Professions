@@ -28,7 +28,7 @@ read_globals = {
     "GetNumSkillLines", "GetSkillLineInfo", "GetWeaponEnchantInfo", "GetInventoryItemID", "UnitChannelInfo", "UnitAura", "UnitBuff", "C_UnitAuras", "TOTAL", "NONE", "GENERAL", "GetStatistic",
     "GetStatisticsCategoryList", "GetCategoryNumAchievements", "GetAchievementInfo",
     "GetBindingAction", "GetAddOnMetadata", "IsAddOnLoaded", "C_AddOns", "IsMouselooking", "MouselookStop", "IsMouseButtonDown", "InCombatLockdown", "C_Minimap", "IsPlayerSpell", "IsSpellKnown", "GetNumTrackingTypes", "GetTrackingInfo", "SetTracking", "GetInventoryItemLink", "EquipItemByName", "C_Item", "C_Container", "NUM_BAG_SLOTS",
-    "GetContainerNumSlots", "GetContainerItemID", "GetContainerNumFreeSlots", "GetUnitSpeed", "C_Timer",
+    "GetContainerNumSlots", "GetContainerItemID", "GetContainerNumFreeSlots", "GetUnitSpeed", "IsFalling", "C_Timer",
     "IsControlKeyDown", "IsAltKeyDown", "IsShiftKeyDown", "UIErrorsFrame", "UIParent", "WorldFrame",
     "SetOverrideBindingClick", "ClearOverrideBindings", "SHIFT_KEY_TEXT", "CTRL_KEY_TEXT", "ALT_KEY_TEXT", "GetSpellInfo", "UnitCreatureType", "C_CreatureInfo",
     "tinsert", "tremove", "wipe", "format", "strsplit", "strjoin", "strmatch", "strtrim", "strlower",

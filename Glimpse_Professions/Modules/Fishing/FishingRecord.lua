@@ -7,10 +7,13 @@ local P = Glimpse:GetModule("Professions")
 --   catch           0           Würfe mit Beute, je Zone
 --   casttier        Stufe       Würfe je Berufsstufe (ID = höchste Fertigkeit der Stufe, z. B. 75)
 --   catchtier       Stufe       Fänge je Berufsstufe
+--   castabort       0           Würfe, die eine Bewegung abgebrochen hat (kein Fang möglich), je Zone
+--   aborttier       Stufe       Abbrüche je Berufsstufe
 --   fish            Item        Menge der Angelbeute, je Zone
 --   looted          Zone        Beutefenster in der Zone (Weltwissen, Nenner der Fangchance)
 --   loot:<Zone>     Item        Menge (Weltwissen)
 --   drop:<Zone>     Item        Beutefenster mit dem Item (Weltwissen)
+-- Ein durch Bewegung abgebrochener Wurf bleibt in cast, zählt aber zusätzlich in castabort und nicht als Wurf ohne Fang.
 -- Ein Fang zählt nur nach einem gezählten Wurf, damit ein zweites Beutefenster nicht doppelt zählt.
 
 P.FISHING_NAMESPACE = "fishing"
@@ -21,12 +24,17 @@ P.recordApi = {
     GetLootSlotType = (C_Loot and C_Loot.GetLootSlotType) or GetLootSlotType,
     GetLootSlotLink = (C_Loot and C_Loot.GetLootSlotLink) or GetLootSlotLink,
     GetLootSlotInfo = GetLootSlotInfo,
+    GetUnitSpeed = GetUnitSpeed,
+    IsFalling = IsFalling,
+    After = C_Timer and C_Timer.After,
 }
 
 local api = P.recordApi
 local LOOT_ITEM = Enum and Enum.LootSlotType and Enum.LootSlotType.Item or 1
 
 local castOpen = false
+local castId = 0 -- Nummer des offenen Wurfs, damit ein später Abbruch keinen neuen Wurf trifft
+local ABORT_WAIT = 0.5 -- Sekunden: Das Beutefenster kann kurz nach dem Ende des Kanals kommen
 
 local function Zone()
     if not (Glimpse.IDs and Glimpse.IDs.ZoneKey) then return nil end
@@ -64,6 +72,34 @@ function P:FishingOnSpell(_, unit, _, spellID)
     ns:Count("cast", 0, Zone())
     if tier then ns:Count("casttier", tier) end
     castOpen = true
+    castId = castId + 1
+end
+
+-- true, wenn sich der Spieler bewegt oder fällt
+local function Moving()
+    local ok, speed = pcall(api.GetUnitSpeed, "player")
+    if ok and (tonumber(P.Clean(speed)) or 0) > 0 then return true end
+    if api.IsFalling then
+        local fine, falling = pcall(api.IsFalling)
+        return fine and P.Clean(falling) == true
+    end
+    return false
+end
+
+--- Ende des Kanals: bei Bewegung und ohne Beutefenster kurz danach war es ein Abbruch
+function P:FishingOnStop(_, unit, _, spellID)
+    if unit ~= "player" or not (self.fishingNs and castOpen and api.After) then return end
+    local def = self:ProfessionForSpell(spellID)
+    if not def or def.key ~= "fishing" or not Moving() then return end
+
+    local id = castId
+    api.After(ABORT_WAIT, function()
+        if not (castOpen and id == castId) then return end
+        castOpen = false
+        local tier = Tier(self)
+        self.fishingNs:Count("castabort", 0, Zone())
+        if tier then self.fishingNs:Count("aborttier", tier) end
+    end)
 end
 
 function P:FishingOnLoot()
@@ -94,5 +130,6 @@ function P:FishingRecordEnable()
 
     self.fishingNs = ns
     self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(...) self.Protected("fishing record", self.FishingOnSpell, self, ...) end)
+    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", function(...) self.Protected("fishing record", self.FishingOnStop, self, ...) end)
     self:RegisterEvent("LOOT_OPENED", function(...) self.Protected("fishing record", self.FishingOnLoot, self, ...) end)
 end

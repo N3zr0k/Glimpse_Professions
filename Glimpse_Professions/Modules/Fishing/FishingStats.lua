@@ -37,6 +37,7 @@ end
 
 local function TierLines(self, reader, lines)
     local casts, catches = reader:GetCounts("casttier"), reader:GetCounts("catchtier")
+    local aborts = reader:GetCounts("aborttier")
     local tiers = {}
     for max in pairs(casts) do tiers[#tiers + 1] = max end
     if #tiers < 2 then return end
@@ -45,8 +46,9 @@ local function TierLines(self, reader, lines)
     local def = self:GetProfession(KEY)
     for _, max in ipairs(tiers) do
         local caught = catches[max] or 0
+        local valid = math.max(casts[max] - (aborts[max] or 0), 0)
         lines[#lines + 1] = format("%s %s: %s%s|r  %s(%d/%d)|r", L["Catch rate"], self:TierName(max, def) or tostring(max),
-            WHITE, Percent(caught, casts[max]), GREY, caught, casts[max])
+            WHITE, Percent(caught, valid), GREY, caught, valid)
     end
 end
 
@@ -57,6 +59,7 @@ function P:CounterLines()
     if not reader then return nil end
 
     local casts, catches = reader:GetCount("cast"), reader:GetCount("catch")
+    local valid = math.max(casts - reader:GetCount("castabort"), 0) -- ohne durch Bewegung abgebrochene Würfe
     if casts <= 0 and catches <= 0 then return nil end
 
     local lines = { { separator = true }, format("|cffffd100%s|r", L["Glimpse counters"]) }
@@ -67,8 +70,8 @@ function P:CounterLines()
     lines[#lines + 1] = CounterLine(reader, L["Casts"], "cast")
     lines[#lines + 1] = CounterLine(reader, L["Catches"], "catch")
     if catches > 0 then
-        lines[#lines + 1] = format("%s: %s%d|r", L["Casts without catch"], WHITE, math.max(casts - catches, 0))
-        lines[#lines + 1] = format("%s: %s%s|r", L["Catch rate"], WHITE, Percent(catches, casts))
+        lines[#lines + 1] = format("%s: %s%d|r", L["Casts without catch"], WHITE, math.max(valid - catches, 0))
+        lines[#lines + 1] = format("%s: %s%s|r", L["Catch rate"], WHITE, Percent(catches, valid))
         TierLines(self, reader, lines)
     end
     lines[#lines + 1] = CounterLine(reader, L["Fish caught"], "fish")

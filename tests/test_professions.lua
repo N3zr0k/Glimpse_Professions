@@ -322,6 +322,45 @@ test("Professions: Angeln wird in Glimpse: Database gezählt, ein Fang nur nach 
     loot.fishing = false
     events.LOOT_OPENED("LOOT_OPENED")
     eq(DB.ns:GetCount("catch"), 0 + 1, "anderes Beutefenster zählt nicht")
+
+    -- Abbruch durch Bewegung: zählt als castabort, nicht als Wurf ohne Fang
+    local waiting, speed, falling = {}, 0, false
+    P.recordApi.After = function(_, func) waiting[#waiting + 1] = func end
+    P.recordApi.GetUnitSpeed = function() return speed end
+    P.recordApi.IsFalling = function() return falling end
+    local function stop(spell) events.UNIT_SPELLCAST_CHANNEL_STOP("UNIT_SPELLCAST_CHANNEL_STOP", "player", "guid", spell or 7620) end
+    local function flush() local list = waiting waiting = {} for _, func in ipairs(list) do func() end end
+
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 7620)
+    stop(); flush()
+    eq(DB.ns:GetCount("castabort"), 0, "stehend: Ende des Kanals ist kein Abbruch")
+
+    speed = 7
+    stop(133); flush()
+    eq(DB.ns:GetCount("castabort"), 0, "anderer Zauber")
+    stop(); flush()
+    eq(DB.ns:GetCount("castabort"), 1, "Bewegung ohne Beutefenster")
+    eq(DB.ns:GetCount("aborttier", 75), 1, "Abbruch je Stufe")
+    eq(DB.data.zones["castabort/0/1429"], 1, "Abbruch mit Zone")
+    stop(); flush()
+    eq(DB.ns:GetCount("castabort"), 1, "ein Wurf nur einmal")
+
+    speed = 0; falling = true
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 7620)
+    stop(); flush()
+    eq(DB.ns:GetCount("castabort"), 2, "Fallen zählt wie Bewegung")
+
+    falling = false; speed = 7
+    loot.fishing = true
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 7620)
+    stop(); events.LOOT_OPENED("LOOT_OPENED"); flush()
+    eq(DB.ns:GetCount("castabort"), 2, "Beutefenster nach dem Ende: Fang, kein Abbruch")
+
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 7620)
+    stop()
+    events.UNIT_SPELLCAST_SUCCEEDED("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 7620)
+    flush()
+    eq(DB.ns:GetCount("castabort"), 2, "neuer Wurf vor Ablauf der Wartezeit")
     _G.GlimpseDB, Glimpse.IDs = nil, nil
 end)
 
@@ -344,6 +383,8 @@ test("Professions: Schwimmer: Zähler aus Glimpse: Database, nur dieser Charakte
     DB.ns:Count("cast", 0, nil, 72)
     DB.ns:Count("catch", 0, nil, 52)
     DB.ns:Count("fish", 6303, nil, 52)
+    DB.ns:Count("castabort", 0, nil, 4)   -- 4 Abbrüche durch Bewegung: 68 gültige Würfe
+    for _ = 1, 4 do DB.ns:Count("aborttier", 75) end
 
     local lines = bobber()
     eq(lines[2], "---", "Trennlinie")
@@ -351,13 +392,13 @@ test("Professions: Schwimmer: Zähler aus Glimpse: Database, nur dieser Charakte
     eq(lines[4], "|cff999999Recorded since " .. os.date("%d/%m/%Y", 1767225600) .. "|r", "seit wann")
     eq(lines[5], "   Casts: |cffffffff72|r  |cff66ccfftoday 72 · 7 days 72|r", "Würfe mit heute und 7 Tagen, eingerückt")
     eq(lines[6], "   Catches: |cffffffff52|r  |cff66ccfftoday 52 · 7 days 52|r", "Fänge")
-    eq(lines[7], "   Casts without catch: |cffffffff20|r", "ohne Fang")
-    eq(lines[8], "   Catch rate: |cffffffff72 %|r", "Quote gesamt")
-    eq(lines[9]:find("Catch rate .-: |cffffffff67 %%|r  |cff999999%(40/60%)|r") ~= nil, true, "Quote je Stufe")
+    eq(lines[7], "   Casts without catch: |cffffffff16|r", "ohne Fang, Abbrüche zählen nicht")
+    eq(lines[8], "   Catch rate: |cffffffff76 %|r", "Quote gesamt ohne Abbrüche")
+    eq(lines[9]:find("Catch rate .-: |cffffffff71 %%|r  |cff999999%(40/56%)|r") ~= nil, true, "Quote je Stufe ohne Abbrüche")
     eq(lines[11]:find("Fish caught", 1, true) ~= nil, true, "Fische")
     eq(#lines, 11, "Zeilen")
     local spell = text(P:SpellLines({ id = 7620 }))
-    eq(table.concat(spell, "\n"):find("Catch rate: |cffffffff72 %|r", 1, true) ~= nil, true, "auch im Tooltip des Zaubers")
+    eq(table.concat(spell, "\n"):find("Catch rate: |cffffffff76 %|r", 1, true) ~= nil, true, "auch im Tooltip des Zaubers")
 
     eq(P:BuildOptions().fishing.args.statAddon.hidden(), false, "Rahmen da")
     P:SetOpt("fishing", "own", false)

@@ -1,6 +1,6 @@
 # Glimpse: Professions – Features
 
-Stand 0.3.13. Berufe: bisher nur Angeln.
+Stand 0.3.14. Berufe: bisher nur Angeln.
 
 ## Angeln
 
@@ -9,7 +9,7 @@ Stand 0.3.13. Berufe: bisher nur Angeln.
 | Tooltip am Zauber „Fischen“ | Berufsstufe als Überschrift (Name aus dem Client), Fertigkeit mit Boni (Köder grün, Buffs orange, Ausrüstung blau) und Liste von Köder und Buffs |
 | Tooltip am Schwimmer | Während des Angelns: Fertigkeit und eigene Zähler |
 | Spielstatistik | Blizzard-Statistiken zum Angeln (gefangene Fische, Fänge, Tagesquests), einzeln abschaltbar |
-| Eigene Zähler | Würfe, Fänge, Würfe ohne Fang, Fangquote gesamt und je Stufe, heute und 7 Tage, gefangene Fische, seit wann gezählt wird |
+| Eigene Zähler | Würfe, Fänge, Würfe ohne Fang (ein durch Bewegung abgebrochener Wurf zählt nicht dazu), Fangquote gesamt und je Stufe, heute und 7 Tage, gefangene Fische, seit wann gezählt wird |
 | Auswerfen per Doppelklick | Taste (Shift, Strg, Alt, keine) und Maustaste wählbar oder zentral im Core; nur im Stehen und außerhalb des Kampfes |
 | Waffenwechsel | Ohne Angel: Waffen ablegen, Angel anlegen; nach 5 m Bewegung kommen die Waffen zurück (im Kampf danach); ohne Taschenplatz kein Wechsel |
 | Auto-Köder | Angel ohne Köder: bester Köder aus den Taschen, Meldung mit Bonus |
@@ -31,7 +31,7 @@ Glimpse: Database, Bereich Professions. Ohne Glimpse_Database wird nichts gezäh
 
 | Namespace | Daten | Lesen | Schreiben |
 | --- | --- | --- | --- |
-| `fishing` | `cast`, `catch` (je Zone), `casttier`, `catchtier` (je Stufe), `fish` (Item je Zone) | ja (`FishingStats.lua`, Tooltip) | ja (`FishingRecord.lua`, einziger Schreiber) |
+| `fishing` | `cast`, `catch` (je Zone), `casttier`, `catchtier` (je Stufe), `castabort` (je Zone) und `aborttier` (je Stufe) für abgebrochene Würfe, `fish` (Item je Zone) | ja (`FishingStats.lua`, Tooltip) | ja (`FishingRecord.lua`, einziger Schreiber) |
 | `fishing` | Weltwissen `looted`, `loot:<Zone>`, `drop:<Zone>` | nein | ja (`FishingRecord.lua`) |
 
 Einstellungen liegen noch in der eigenen SavedVariable `GlimpseProfessionsDB`, nicht in der Datenbank.

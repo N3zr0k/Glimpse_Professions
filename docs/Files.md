@@ -25,7 +25,7 @@ noch in der eigenen SavedVariable `GlimpseProfessionsDB` (AceDB: `global` = Eins
 | `Modules/Modules.xml` | Lädt die Berufe, je Beruf ein Ordner | – | – |
 | `Modules/Fishing/Fishing.xml` | Lädt die Angeln-Dateien, `Fishing.lua` zuerst | – | – |
 | `Modules/Fishing/Fishing.lua` | Beruf Angeln: Tooltip am Zauber „Fischen“ (Stufe, Fertigkeit mit Boni, Statistik), Options-Tab mit Tastenauswahl des Cores, Probe | liest über `FishingStats.lua`; merkt `fishingGear` in `GlimpseProfessionsDB.char`; Einstellungen `castKey`, `castButton` in `GlimpseProfessionsDB.global.fishing` | `RegisterProfession`, `Glimpse:AddDoubleClickKeyOptions` (Core 0.3.7) |
-| `Modules/Fishing/FishingRecord.lua` | Zählt Würfe, Fänge, Beute je Zone und Berufsstufe | schreibt: `fishing` (einziger Schreiber, Weltwissen `looted`, `loot`, `drop`) | `GlimpseDB:Register`, `Glimpse.IDs:ZoneKey`, `C_Loot`, `IsFishingLoot` |
+| `Modules/Fishing/FishingRecord.lua` | Zählt Würfe, Fänge, Beute je Zone und Berufsstufe | schreibt: `fishing` (einziger Schreiber, auch `castabort`, `aborttier`; Weltwissen `looted`, `loot`, `drop`) | `GlimpseDB:Register`, `Glimpse.IDs:ZoneKey`, `C_Loot`, `IsFishingLoot`, `GetUnitSpeed`, `IsFalling`, `C_Timer` |
 | `Modules/Fishing/FishingStats.lua` | Eigene Angelzähler dieses Charakters für den Tooltip (gesamt, heute, 7 Tage, je Stufe) | liest: `fishing` | `GlimpseDB:Get` |
 | `Modules/Fishing/FishingBuffs.lua` | Angelboni aus Buffs und Köder an der Angel | – | `C_UnitAuras`, `C_TooltipInfo` |
 | `Modules/Fishing/FishingLure.lua` | Auto-Köder: bester Köder aus den Taschen beim Auswerfen | – | `C_Container`, `C_TooltipInfo.GetBagItem` |

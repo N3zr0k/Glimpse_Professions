@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.3.14] - 2026-10-10
+
+### Fixed
+- Fishing: a cast cancelled by moving no longer counts as a cast without catch
+
 ## [0.3.13] - 2026-10-10
 
 ### Added
